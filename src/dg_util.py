@@ -4,14 +4,59 @@ import re
 from pprint import pprint
 from textwrap import wrap
 from random import randrange
-# from delphin.derivation import UDFTerminal, UDFNode
+from delphin.derivation import UDFTerminal, UDFNode
+
+from networkx.drawing.nx_agraph import to_agraph
+from networkx.algorithms.components import is_weakly_connected
+
+from src import util
+
+import time
+
+class DerivationBranchingError(Exception):
+    """Raised when a node in the derivation has more than 2 daughters"""
+    pass
+
+
+class DMRSNoLnkError(Exception):
+    """Raised when a node in the DMRS has no lnk"""
+    pass
+
+class DisconnectedDMRSError(Exception):
+    """Raised when a DMRS is weakly disconencted"""
+    pass
+
+class ExtraPredicateError(DMRSNoLnkError):
+    """Raised when a node in the DMRS is extra"""
+    pass
+
+class Dmrs(nx.MultiDiGraph):
+    
+    def __init__(self):
+        super().__init__()
+
+    def merge_nodes(self, merging_nodes, retain_node, merge_type = "usp"):
+        
+        edges_add = []
+        for node in merging_nodes:
+            if node == retain_node: continue
+            # for src, targ, lbl in self.dmrs_dg.out_edges(node, data = True):
+            #     if targ not in merging_nodes:
+            #         print ("external nodes?")
+            for src, targ, lbl in self.in_edges(node, data = True):
+                if src not in merging_nodes:
+                    edges_add.append((src, retain_node, lbl))
+            
+        self.add_edges_from(edges_add)    
+        self.remove_nodes_from(merging_nodes - set([retain_node]))
+        
 
 class Erg_DiGraphs:
     def __init__(self):
         self.snt = ""
         self.deriv_dg = nx.DiGraph()
         self.syn_tree_dg = nx.DiGraph()
-        self.dmrs_dg = nx.MultiDiGraph()
+        self.dmrs_dg = Dmrs()
         
     def mrp_json_to_directed_graph(mrp_json):
         pass
@@ -73,6 +118,27 @@ class Erg_DiGraphs:
         except Exception as e:
             print (e)
         return ag
+    
+    def draw_dmrs(self, timestamp = False, name = "err"):
+        time_str = "_" + time.asctime( time.localtime(time.time()) ).replace(" ", "-") if timestamp else ""
+        save_path = "./figures/dmrs_{}".format(name) + time_str + ".png"
+        
+        dmrs_dg_draw = self.dmrs_dg.copy()
+        for node, node_prop in dmrs_dg_draw.nodes(data = True):
+            dmrs_dg_draw.nodes[node]['label'] = "\n".join([prop_key + ": " + str(self.dmrs_dg.nodes[node][prop_key]) for prop_key in node_prop]) + "\n{}".format(node)
+
+        ag = to_agraph(dmrs_dg_draw)
+        ag.layout('dot')
+        ag.draw(save_path)
+        print ("dmrs drawn:", save_path)
+
+    def draw_deriv(self, timestamp = False, name = "err"):
+        time_str = "_" + time.asctime( time.localtime(time.time()) ).replace(" ", "-") if timestamp else ""
+        save_path = "./figures/deriv_{}".format(name) + time_str + ".png"
+        ag = to_agraph(self.deriv_dg)
+        ag.layout('dot')
+        ag.draw(save_path)
+        print ("deriv drawn:", save_path)
     
     def init_snt(self,snt):
         self.snt = snt
@@ -151,7 +217,7 @@ class Erg_DiGraphs:
 #             deriv.type,
 #         )
         
-        def parse_anchor_from(tfs_str):
+        def _parse_anchor_from(tfs_str):
             x = re.search(r"\+FROM \#\d*=\\\"(\d+)\\\"", tfs_str)
             y = re.search(r"\+FROM \\\"(\d+)\\\"", tfs_str)
             if x != None:
@@ -162,7 +228,7 @@ class Erg_DiGraphs:
                 print ("err\n",tfs_str)
                 return None
             
-        def parse_anchor_to(tfs_str):
+        def _parse_anchor_to(tfs_str):
             x = re.search(r"\+TO \\\"(\d+)\\\"", tfs_str)
             if x != None:
                 return x.group(1)
@@ -170,16 +236,14 @@ class Erg_DiGraphs:
                 print ("err\n",tfs_str)
                 return None
         
-        def add_node_edge(par_node, node, edge_label = 'U'):
-            #print (node.to_dict())
+        def _add_node_edge(par_node, node, edge_label = 'U'):
             node_anchors = None
             node_id = None
             FIELDS = None
             if isinstance(node, UDFNode):
                 #non-terminal nodes
                 FIELDS = NON_TERM_FIELDS
-                node_id = getattr(node,'id')
-                
+                node_id = getattr(node,'id') if getattr(node,'id') else -1 
             elif isinstance (node, UDFTerminal):
                 #terminal nodes
                 FIELDS = TERM_FIELDS
@@ -191,10 +255,10 @@ class Erg_DiGraphs:
 #                         Erg_DiGraphs.ppprint (token.tfs)
 #                         print ()
                 node_id = getattr(node,'tokens')[0].id
-                node_anchors = (str(min([int(parse_anchor_from(token.tfs))
-                                     for token in getattr(node,'tokens')])),
-                                str(max([int(parse_anchor_to(token.tfs))
-                                     for token in getattr(node,'tokens')]))
+                node_anchors = (min([int(_parse_anchor_from(token.tfs))
+                                     for token in getattr(node,'tokens')]),
+                                max([int(_parse_anchor_to(token.tfs))
+                                     for token in getattr(node,'tokens')])
                                )
             self.deriv_dg.add_node(node_id)
             if node_anchors != None:
@@ -205,7 +269,8 @@ class Erg_DiGraphs:
                 self.deriv_dg.nodes[node_id][FIELD] = str(getattr(node,FIELD))
                 
             if par_node != None:
-                self.deriv_dg.add_edge(par_node.id, node_id, label = edge_label)
+                par_node_id = par_node.id if par_node.id else -1 
+                self.deriv_dg.add_edge(par_node_id, node_id, label = edge_label)
             
             if draw:
                 if 'entity' in self.deriv_dg.nodes[node_id]:
@@ -213,23 +278,28 @@ class Erg_DiGraphs:
                 elif 'form' in self.deriv_dg.nodes[node_id]:
                     self.deriv_dg.nodes[node_id]['label'] = "\n".join([self.deriv_dg.nodes[node_id]['form'], str(node_id)])
                 if 'anchor_from' and 'anchor_to' in self.deriv_dg.nodes[node_id]:
-                    self.deriv_dg.nodes[node_id]['label'] += "\n" + "<" + self.deriv_dg.nodes[node_id]['anchor_from'] + ":" + self.deriv_dg.nodes[node_id]['anchor_to'] + ">" 
+                    self.deriv_dg.nodes[node_id]['label'] += "\n" + "<" + str(self.deriv_dg.nodes[node_id]['anchor_from']) + ":" + str(self.deriv_dg.nodes[node_id]['anchor_to']) + ">" 
                 
         
         #add nodes
-        def dfs(par_node, deriv_node, edge_label):
-            add_node_edge(par_node, deriv_node, edge_label)
+        def _dfs(par_node, deriv_node, edge_label):
+            _add_node_edge(par_node, deriv_node, edge_label)
+            # if isinstance(deriv_node, UDFNode):
+            #     print (deriv_node.daughters)
+            #     print ()
             if hasattr(deriv_node, 'daughters'):
                 if len(deriv_node.daughters) == 2:
-                    dfs(deriv_node, deriv_node.daughters[0], edge_label = 'L')
-                    dfs(deriv_node, deriv_node.daughters[1], edge_label = 'R')
+                    _dfs(deriv_node, deriv_node.daughters[0], edge_label = 'L')
+                    _dfs(deriv_node, deriv_node.daughters[1], edge_label = 'R')
                 elif len(deriv_node.daughters) == 1:
-                    dfs(deriv_node, deriv_node.daughters[0], edge_label = 'U')
-        dfs(None, deriv, edge_label = "U")
-        self.deriv_dg.graph['root'] = getattr(deriv,'id')
+                    _dfs(deriv_node, deriv_node.daughters[0], edge_label = 'U')
+                elif len(deriv_node.daughters) > 2:
+                    raise DerivationBranchingError
+        _dfs(None, deriv, edge_label = "U")
+        self.deriv_dg.graph['root'] = -1
     
 
-    def init_dmrsjson(self, dmrsjson, draw = False):
+    def init_dmrsjson(self, dmrsjson, minimal_prop = False):
         is_good_dmrs = True
         self.dmrs_dg.graph['index'] = dmrsjson.get('index')
         self.dmrs_dg.graph['top'] = dmrsjson['top']
@@ -239,37 +309,51 @@ class Erg_DiGraphs:
                 for prop in node['sortinfo']:
                     if prop == 'cvarsort':
                         self.dmrs_dg.nodes[node['nodeid']][prop.lower()] = node['sortinfo'][prop]
-                    else:
+                    elif not minimal_prop:
                         self.dmrs_dg.nodes[node['nodeid']][prop.lower()] = node['sortinfo'][prop].upper()
             if 'carg' in node:
                 self.dmrs_dg.nodes[node['nodeid']]['carg'] = node['carg']
             # wikiwoods formatting bugs?
             anc_from, anc_to = None, None
-            if "<" in node['predicate'] and ">" in node['predicate']:
-                langle_pos = node['predicate'].find("<")
-                rangle_pos = node['predicate'].find(">")
-                self.dmrs_dg.nodes[node['nodeid']]['instance'] = node['predicate'][:langle_pos]
-                anc = node['predicate'][langle_pos+1:rangle_pos].split(":")
-                anc_from, anc_to = anc
-            else:
-                self.dmrs_dg.nodes[node['nodeid']]['instance'] = node['predicate']
-                self.dmrs_dg.nodes[node['nodeid']]['lnk'] = "<{}:{}>".format(str(node['lnk']['from']), str(node['lnk']['to']))
-            self.dmrs_dg.nodes[node['nodeid']]['lnk'] = "<{}:{}>".format(anc_from, anc_to)
+            # if "<" in node['predicate'] and node['predicate'][-1] = ">":
+            #     langle_pos = node['predicate'].find("<")
+            #     rangle_pos = node['predicate'].find(">")
+            #     self.dmrs_dg.nodes[node['nodeid']]['instance'] = node['predicate'][:langle_pos]
+            #     anc = node['predicate'][langle_pos+1:rangle_pos].split(":")
+            #     anc_from, anc_to = anc
+            # else:
+            self.dmrs_dg.nodes[node['nodeid']]['predicate'] = node['predicate']
+            if minimal_prop:
+                pred_lemma, pred_pos = util.get_lemma_pos(node['predicate'])
+                self.dmrs_dg.nodes[node['nodeid']]['lemma'] = pred_lemma
+                self.dmrs_dg.nodes[node['nodeid']]['pos'] = pred_pos
+            if 'lnk' not in node:
+                print (node)
+                if node['predicate'] == '_':
+                    raise ExtraPredicateError
+                else:
+                    raise DMRSNoLnkError
+            anc_from, anc_to = node['lnk']['from'], node['lnk']['to']
+            if not minimal_prop:
+                self.dmrs_dg.nodes[node['nodeid']]['anchor_from'] = anc_from
+                self.dmrs_dg.nodes[node['nodeid']]['anchor_to'] = anc_to
             # is_good_dmrs = False
-            if draw:
-                props_key = list(self.dmrs_dg.nodes[node['nodeid']].keys())
-                self.dmrs_dg.nodes[node['nodeid']]['label'] = "\n".join([prop_key + ": " + self.dmrs_dg.nodes[node['nodeid']][prop_key] for prop_key in props_key])
-                
+
         for edge in dmrsjson['links']:
             self.dmrs_dg.add_edge(edge['from'],edge['to'], label=edge['rargname']+"/"+edge['post'])
+            
+        if not is_weakly_connected(self.dmrs_dg):
+            raise DisconnectedDMRSError
+            
         return is_good_dmrs
     
-    def init_dmrs_from_nxDG(self,dmrs_nxDG, draw = False):
-        if draw:
-            for node, node_prop in dmrs_nxDG.nodes(data = True):
-                props_key = list(dmrs_nxDG.nodes[node].keys())
-                dmrs_nxDG.nodes[node]['label'] = "\n".join([prop_key + ": " + Erg_DiGraphs.split_line(str(dmrs_nxDG.nodes[node][prop_key])) for prop_key in props_key if props_key]) # + [Erg_DiGraphs.split_line(str(node))])
+    def init_dmrs_from_nxDG(self, dmrs_nxDG, draw = False):
+        # if draw:
+        #     for node, node_prop in dmrs_nxDG.nodes(data = True):
+        #         props_key = list(dmrs_nxDG.nodes[node].keys())
+        #         dmrs_nxDG.nodes[node]['label'] = "\n".join([prop_key + ": " + Erg_DiGraphs.split_line(str(dmrs_nxDG.nodes[node][prop_key])) for prop_key in props_key if props_key]) # + [Erg_DiGraphs.split_line(str(node))])
         self.dmrs_dg = dmrs_nxDG
+        
             
 if  __name__ =='__main__':
     pass

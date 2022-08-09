@@ -1,0 +1,697 @@
+{
+    "lexical_pos": [
+        "n",
+        "a",
+        "v"
+    ],
+    "abs_pred_func": {
+        "sem": [
+            "poss_rel",
+            "loc_nonsp_rel",
+            "of_p_rel",
+            "with_p_rel"
+        ],
+        "cpd": [
+            "compound_rel",
+            "compound_name_rel"
+        ],
+        "neg": [
+            "neg_rel",
+            "not_x_deg"
+        ],
+        "gen": [
+            "pron_rel",
+            "generic_entity_rel",
+            "generic_entity_rel",
+            "pron",
+            "thing_rel",
+            "person_rel",
+            "place_n_rel",
+            "time_n_rel",
+            "reason_rel"
+        ],
+        "carg": [
+            "season_rel",
+            "holiday_rel"
+        ]
+    },
+    "neg_quantifier": [
+        "_no_q_rel",
+        "_neither_q_rel",
+        "_no+more_q_rel"
+    ],
+    "logical_preds": {
+        "_and_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aANDb"
+        },
+        "_plus_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aANDb"
+        },
+        "_as+well+as_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aANDb"
+        },
+        "_and+then_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aANDb"
+        },
+        "_then_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aANDb"
+        },
+        "_and+also_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aANDb"
+        },
+        "_yet_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aANDb"
+        },
+        "_but+also_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aANDb"
+        },
+        "_when_x_subord": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_while_x": {
+            "args": [
+                "ARG1/EQ",
+                "ARG2/EQ"
+            ],
+            "op": "aANDb"
+        },
+        "_because_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_after_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_as_x_subord": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_since_x_subord": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_for_x_cause": {
+            "args": [
+                "ARG1/EQ",
+                "ARG2/EQ"
+            ],
+            "op": "aANDb"
+        },
+        "_so+that_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_in+that_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_whereas_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_as+if_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_so+as+to_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_albeit_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_albeit_x_rel": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_now+that_x": {
+            "args": [
+                "ARG2/H",
+                "ARG1/H"
+            ],
+            "op": "aANDb"
+        },
+        "_as+far+as_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_so+long+as_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_whenever_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_much+as_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_inasmuchas+as_x_subord": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_so+far+as_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_but_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aANDb"
+        },
+        "implicit_conj_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aANDb"
+        },
+        "subord_rel": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aANDb"
+        },
+        "_or_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aORb"
+        },
+        "_or_c": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aORb"
+        },
+        "_or+else_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "!a->b"
+        },
+        "_else_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "!a->b"
+        },
+        "_as+long+as_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "a->b"
+        },
+        "_provided_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "a->b"
+        },
+        "_if+only_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "a->b"
+        },
+        "_if+and+when_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "a->b"
+        },
+        "_if_x_then": {
+            "args": [
+                "ARG2/H",
+                "ARG1/H"
+            ],
+            "op": "b->a"
+        },
+        "_once_x_subord": {
+            "args": [
+                "ARG2/H",
+                "ARG1/H"
+            ],
+            "op": "b->a"
+        },
+        "_in+case_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "b->a"
+        },
+        "_if+and+only+if_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "a<->b"
+        },
+        "_rather+than_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aAND!b"
+        },
+        "_and+not_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aAND!b"
+        },
+        "_but+not_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aAND!b"
+        },
+        "_nor_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aAND!b"
+        },
+        "_not_c_rel": {
+            "args": [
+                "L-INDEX/NEQ",
+                "R-INDEX/NEQ"
+            ],
+            "op": "aAND!b"
+        },
+        "_nor_x_subord": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aAND!b"
+        },
+        "_not+that_x": {
+            "args": [
+                "ARG1/H",
+                "ARG2/H"
+            ],
+            "op": "aAND!b"
+        },
+        "_except+to_x": {
+            "args": [
+                "ARG1/NEQ",
+                "ARG2/NEQ"
+            ],
+            "op": "aAND!b"
+        },
+        "_but_p_except": {
+            "args": [
+                "ARG1/EQ",
+                "ARG2/NEQ"
+            ],
+            "op": "aAND!b"
+        },
+        "_far+from_a": {
+            "args": [
+                "ARG1/H"
+            ],
+            "op": "!a"
+        },
+        "_not+quite_a": {
+            "args": [
+                "ARG1/H"
+            ],
+            "op": "!a"
+        },
+        "_not_x_deg": {
+            "args": [
+                "ARG1/NEQ"
+            ],
+            "op": "!a"
+        },
+        "_not+even_x_deg": {
+            "args": [],
+            "op": "others"
+        },
+        "_far+from_x_deg": {
+            "args": [
+                "ARG1/EQ"
+            ],
+            "op": "!a"
+        },
+        "_not+quite_x": {
+            "args": [
+                "ARG1/EQ"
+            ],
+            "op": "!a"
+        },
+        "neg_rel": {
+            "args": [
+                "ARG1/H"
+            ],
+            "op": "!a"
+        },
+        "_un-_a_rvrs": {
+            "args": [
+                "ARG1/EQ"
+            ],
+            "op": "!a"
+        },
+        "_etc_c_rel": {
+            "args": [],
+            "op": "others"
+        },
+        "_and_c_mod": {
+            "args": [],
+            "op": "others"
+        },
+        "_to_c_from": {
+            "args": [],
+            "op": "others"
+        },
+        "_after_c_rel": {
+            "args": [],
+            "op": "others"
+        },
+        "_in+order+to_x": {
+            "args": [],
+            "op": "others"
+        },
+        "_although_x": {
+            "args": [],
+            "op": "others"
+        },
+        "_though_x": {
+            "args": [],
+            "op": "others"
+        },
+        "_with_x": {
+            "args": [],
+            "op": "others"
+        },
+        "_at+least_x_deg": {
+            "args": [],
+            "op": "others"
+        },
+        "_now_x_deg": {
+            "args": [],
+            "op": "others"
+        },
+        "_unless_deg": {
+            "args": [],
+            "op": "others"
+        },
+        "_unless_rel": {
+            "args": [],
+            "op": "others"
+        },
+        "_whilst_x_deg": {
+            "args": [],
+            "op": "others"
+        },
+        "_whilst_x_rel": {
+            "args": [],
+            "op": "others"
+        },
+        "_where_x_subord": {
+            "args": [],
+            "op": "others"
+        },
+        "_no_x_deg": {
+            "args": [],
+            "op": "others"
+        },
+        "_for_x_cond": {
+            "args": [],
+            "op": "others"
+        },
+        "_like_x_prep": {
+            "args": [],
+            "op": "others"
+        },
+        "_such+that_x": {
+            "args": [],
+            "op": "others"
+        },
+        "_although_x_rel": {
+            "args": [],
+            "op": "others"
+        },
+        "_though_x_rel": {
+            "args": [],
+            "op": "others"
+        },
+        "_therefore_x": {
+            "args": [],
+            "op": "others"
+        },
+        "_except_x_h": {
+            "args": [],
+            "op": "others"
+        },
+        "_given+that_x_subord": {
+            "args": [],
+            "op": "others"
+        },
+        "_whereby_x": {
+            "args": [],
+            "op": "others"
+        },
+        "_as+though_x": {
+            "args": [],
+            "op": "others"
+        },
+        "_as+though_x_rel": {
+            "args": [],
+            "op": "others"
+        },
+        "_as+much+as_x": {
+            "args": [],
+            "op": "others"
+        },
+        "_whenever_x_subord": {
+            "args": [],
+            "op": "others"
+        },
+        "_insofar+as_x_subord": {
+            "args": [],
+            "op": "others"
+        },
+        "_at+best_x_subord": {
+            "args": [],
+            "op": "others"
+        },
+        "_providing_x": {
+            "args": [],
+            "op": "others"
+        },
+        "_in+so+far+as_x": {
+            "args": [],
+            "op": "others"
+        },
+        "_as+for_x_subord": {
+            "args": [],
+            "op": "others"
+        },
+        "_nowhere+near_x_deg": {
+            "args": [],
+            "op": "others"
+        },
+        "_not+the+least_x_deg": {
+            "args": [],
+            "op": "others"
+        },
+        "_instead+of_c_rel": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_formerly_c_rel": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_minus_c_rel": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_very_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_only_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_about_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_over_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_almost_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_especially_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_much_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_well_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_particularly_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_approximately_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_of_x_subord": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_relatively_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_nearly_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_shortly_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_mostly_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_quite_x": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_extremely_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_far_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        },
+        "_around_x_deg": {
+            "args": [],
+            "op": "notLogical"
+        }
+    },
+    "ignore": [
+        "_threedot-pnct_a_1"
+    ]
+}
