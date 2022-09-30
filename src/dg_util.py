@@ -119,10 +119,10 @@ class Erg_DiGraphs:
             print (e)
         return ag
     
-    def draw_dmrs(self, timestamp = False, name = "err"):
+    def draw_dmrs(self, timestamp = False, name = "err", save_path = None):
         time_str = "_" + time.asctime( time.localtime(time.time()) ).replace(" ", "-") if timestamp else ""
-        save_path = "./figures/dmrs_{}".format(name) + time_str + ".png"
-        
+        if not save_path:
+            save_path = "./figures/dmrs_{}".format(name) + time_str + ".png"
         dmrs_dg_draw = self.dmrs_dg.copy()
         for node, node_prop in dmrs_dg_draw.nodes(data = True):
             dmrs_dg_draw.nodes[node]['label'] = "\n".join([prop_key + ": " + str(self.dmrs_dg.nodes[node][prop_key]) for prop_key in node_prop]) + "\n{}".format(node)
@@ -132,9 +132,10 @@ class Erg_DiGraphs:
         ag.draw(save_path)
         print ("dmrs drawn:", save_path)
 
-    def draw_deriv(self, timestamp = False, name = "err"):
+    def draw_deriv(self, timestamp = False, name = "err", save_path = None):
         time_str = "_" + time.asctime( time.localtime(time.time()) ).replace(" ", "-") if timestamp else ""
-        save_path = "./figures/deriv_{}".format(name) + time_str + ".png"
+        if not save_path:
+            save_path = "./figures/deriv_{}".format(name) + time_str + ".png"
         ag = to_agraph(self.deriv_dg)
         ag.layout('dot')
         ag.draw(save_path)
@@ -328,7 +329,6 @@ class Erg_DiGraphs:
                 self.dmrs_dg.nodes[node['nodeid']]['lemma'] = pred_lemma
                 self.dmrs_dg.nodes[node['nodeid']]['pos'] = pred_pos
             if 'lnk' not in node:
-                print (node)
                 if node['predicate'] == '_':
                     raise ExtraPredicateError
                 else:

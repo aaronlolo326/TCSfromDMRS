@@ -1,3 +1,4 @@
+from readline import set_auto_history
 import networkx as nx
 from networkx.drawing.nx_agraph import to_agraph
 
@@ -7,23 +8,56 @@ from varname import nameof
 import time
 
 from disjoint_set import DisjointSet
+from toposort import toposort, toposort_flatten
 
 from src import util, dg_util
 
+from functools import reduce
+
+import copy
+
 TRUE = "<True>"
 
+EVENTUALITIES = 'e'
+INSTANCES = 'x'
+
+LOGIC_PRED_TYPE_C = 'C'
+LOGIC_PRED_TYPE_H = 'H'
+LOGIC_PRED_TYPE_S = 'S'
+LOGIC_PRED_TYPE_X = 'X'
+
+NEG = 'S-!a'
+UNARY_SCOPAL_OP = ['S-a', 'S-!a']
+BINARY_SCOPAL_OP = ["S-aAND!b", "S-a<=>b", "S-b=>a", "S-a=>b", "S-aANDb"]
+
+NEQ = 'NEQ'
+EQ = 'EQ'
+HEQ = 'HEQ'
+H = 'H'
+
+
 class TruthConditions(object):
-    """Rescale the image in a sample to a given size.
+    """Transform DMRS to a logical expression of a reading.
 
     Args:
-        output_size (tuple or int): Desired output size. If tuple, output is
+        min_pred_func_freq (int): Desired output size. If tuple, output is
+            matched to output_size. If int, smaller of image edges is matched
+            to output_size keeping aspect ratio the same.
+        min_lex_pred_freq (int): Desired output size. If tuple, output is
+            matched to output_size. If int, smaller of image edges is matched
+            to output_size keeping aspect ratio the same.
+        lex_pred2cnt (dict): Desired output size. If tuple, output is
+            matched to output_size. If int, smaller of image edges is matched
+            to output_size keeping aspect ratio the same.
+        pred_func2cnt (dict): Desired output size. If tuple, output is
+            matched to output_size. If int, smaller of image edges is matched
+            to output_size keeping aspect ratio the same.
+        filter_min_freq (bool): Desired output size. If tuple, output is
             matched to output_size. If int, smaller of image edges is matched
             to output_size keeping aspect ratio the same.
     """
 
-    def __init__(self, config,
-        min_pred_func_freq, min_lex_pred_freq, lex_pred2cnt, pred_func2cnt,
-        filter_min_freq):
+    def __init__(self, config, min_pred_func_freq, min_lex_pred_freq, lex_pred2cnt, pred_func2cnt, filter_min_freq):
 
         self.config = config
         self.filter_min_freq = filter_min_freq
@@ -44,233 +78,786 @@ class TruthConditions(object):
         }
 
         self.discarded = False
+        self.node2pred = defaultdict()
+        # for decoders
+        self.logic_expr = None
+        sub_logic_expr = None
+        # for encoder
+        self.lexical_preds = []
+        self.pred_func_nodes = set()
 
     def _check_discard(self):
         # TODO
-        discarded = False
+        if self.discarded:
+            return
+        # self.discarded = False
         if not self.logic_expr:
-            discarded = True
-        elif not self.pred_func_node or not self.lexical_preds:
-            discarded = True
+            self.discarded_reason = "no logic expr"
+            self.discarded = True
+        elif len(self.pred_func_nodes) < 2 or len(self.lexical_preds) < 2:
+            self.discarded_reason = "too few pred func node/lexical preds"
+            self.discarded = True
         else:
             pass
-        self.discarded = discarded
         
     def _get_node2pred(self):
-        self.node2pred = defaultdict()
         for node, node_prop in self.dmrs_nxDG.nodes(data = True):
             self.node2pred[node] = node_prop['predicate']
     
     def _get_lexical_pred(self):
-        self.lexical_preds = []
         for node, node_prop in self.dmrs_nxDG.nodes(data = True):
             if 'pos' in node_prop:
-                if self._is_lexical_pred(node_prop['predicate'], node_prop['pos']) and self._is_frequent(node_prop['predicate'], self.lex_pred2cnt, self.min_lex_pred_freq):
+                if all([
+                    self._is_lexical_pred(node_prop['predicate'], node_prop['pos']),
+                    self._is_frequent(node_prop['predicate'], self.lex_pred2cnt, self.min_lex_pred_freq)
+                ]):
                     self.lexical_preds.append(node_prop['predicate'])
+
+    def _get_topmost_scope(self, curr_scope, original_scope):
+        # print ("curr_scope:", curr_scope)
+        topmost_scope = self.scope2topmost_scope.get(curr_scope)
+        if topmost_scope != None:
+            # print ("topmost_scope:", topmost_scope)
+            return topmost_scope
+        par_scope = self.scope2par_scope.get(curr_scope)
+        if par_scope == original_scope:
+            return False
+        if par_scope != None:
+            # print ("par_scope:", par_scope)
+            return self._get_topmost_scope(par_scope, original_scope)
+        else:
+            return curr_scope
+
+
+    def _is_coord_conj(self, node):
+        return any([
+            self._is_logic_pred_of_type(node, LOGIC_PRED_TYPE_X),
+            self._is_logic_pred_of_type(node, LOGIC_PRED_TYPE_H),
+            self._is_logic_pred_of_type(node, LOGIC_PRED_TYPE_C)
+        ])
+            
+    def _get_coord_conj_obj_nodes(self):
+        self.node2is_cc_obj = defaultdict(bool)
+        self.top_scope2cc_obj_scopes = defaultdict(set)
+        for node in self.dmrs_nxDG.nodes():
+            if self._is_coord_conj(node):
+                # if has NEQ and not with HNDL
+                in_h_edges = self.get_in_edges_arg(node, edge_types = [HEQ, H])
+                in_x_edges = self.get_in_edges_arg(node, edge_types = [NEQ, EQ])
+                if in_x_edges and not [e for e in in_h_edges if self.get_edge_arg_lbl(e[3]) in ["L-HNDL", "R-HNDL"]]:
+                    self.node2is_cc_obj[node] = True
+                    for src, targ, key, lbl in in_x_edges:
+                        self.top_scope2cc_obj_scopes[self.scope2topmost_scope[self.node2scope[src]]].add(self.node2scope[node])
+        cc_nodes_new_temp = self.node2is_cc_obj | self.node2is_trsprt_obj
+        while cc_nodes_new_temp:
+            cc_nodes_new = cc_nodes_new_temp.copy()
+            cc_nodes_new_temp = set()
+            for node in cc_nodes_new:
+                out_edges_arg = self.get_out_edges_arg(node, edge_types = ['NEQ'])
+                for src, targ, key, lbl in out_edges_arg:
+                    if self._is_coord_conj(targ):
+                        self.node2is_cc_obj[targ] = True
+                        cc_nodes_new_temp.add(targ)
+
+    def _get_transparent_obj_nodes(self):
+        self.node2is_trsprt_obj = defaultdict(bool)
+        for node in self.dmrs_nxDG.nodes():
+            if self.node2pred[node] in self.config['transparent_preds']:
+                # if has NEQ and not with HNDL
+                in_x_edges = self.get_in_edges_arg(node, edge_types = [NEQ, EQ])
+                if in_x_edges:
+                    self.node2is_trsprt_obj[node] = True
 
     def _get_scopes(self):
         
+        self.scope2nodes = defaultdict()
         self.node2scope = defaultdict()
-        
+        self.node2qtfr = defaultdict()
+        self.node2outscoped = defaultdict(bool)
+        self.scope2par_scope = defaultdict()
+        self.scope2topmost_scope = defaultdict()
+        self.functor_scope2cc_scopes = defaultdict(set)
+        self.functor_node2cc_nodes = defaultdict(set)
+        self.scope2functor_node2cc_nodes = defaultdict(lambda: defaultdict(set))
         scopes = DisjointSet()
+        coord_conj_deps = DisjointSet()
+        self.outscoped = DisjointSet()
+        self.coord_conj_deps = DisjointSet()
+        self.node2cc_dep = defaultdict()
         num_scope = 0
         
         for src, targ, lbl in self.dmrs_nxDG.edges(data = 'label'):
-            if lbl.endswith("/EQ"):
+            if lbl == 'RSTR/H':
+                # print (self.dmrs_nxDG.nodes[src])
+                # assert all([
+                #             self.dmrs_nxDG.nodes[src]['pos'] == 'q'
+                #         ])
+                self.node2qtfr[targ] = self.dmrs_nxDG.nodes[src]['predicate']
+                continue
+            elif lbl.endswith("/EQ"):
                 scopes.union(src, targ)
+                self.outscoped.union(src, targ)
             else:
                 scopes.find(src)
                 scopes.find(targ)
-                
-        self.scope2nodes = {idx: d_set for idx, d_set in enumerate(scopes.itersets())}
+                if self._is_edge_scopal(lbl):
+                    self.node2outscoped[targ] = True
+                    self.outscoped.union(src, targ)
+
+        self.scope2nodes = {idx: list(d_set) for idx, d_set in enumerate(scopes.itersets())}
 
         for idx, d_set in self.scope2nodes.items():
-            for e in d_set:
-                self.node2scope[e] = idx
+            for node in d_set:
+                self.node2scope[node] = idx
+
+
+        for src, targ, lbl in self.dmrs_nxDG.edges(data = 'label'):
+            if lbl in ['RSTR/H']:
+                continue
+            if self._is_coord_conj(targ) and not self._is_edge_scopal(lbl):
+                coord_conj_deps.find(targ)
+                self.scope2functor_node2cc_nodes[self.node2scope[src]][src].add(targ)
+                if not self.outscoped.connected(src, targ):
+                    self.functor_node2cc_nodes[src].add(targ)
+                    if self._is_coord_conj(src):
+                        coord_conj_deps.union(src, targ)
+                # if lbl.endswith("/EQ"):
+                    # self.scope2functor_node2cc_nodes[self.node2scope[src]][src].add(targ)
+                if not lbl.endswith("/EQ"):
+                    self.functor_scope2cc_scopes[self.node2scope[src]].add(
+                        self.node2scope[targ]
+                    )
+            if self._is_edge_scopal(lbl):
+                src_scope = self.node2scope[src]
+                targ_scope = self.node2scope[targ]
+                if any([
+                    src_scope == targ_scope
+                ]):
+                    self.discarded = True
+                    self.discarded_reason = "scopal edge connects same scopes"
+                    return
+                else:
+                    # print (self.dmrs_nxDG.edges(data = 'label'))
+                    self.scope2par_scope[targ_scope] = src_scope
+
+        try:
+            for scope in self.scope2nodes:
+                topmost_scope = self._get_topmost_scope(scope, scope)
+                if not topmost_scope is False:
+                    self.scope2topmost_scope[scope] = topmost_scope
+                else:
+                    self.discarded = True
+                    self.discarded_reason = "qeq cycle"
+                    return
+        except:
+            self.discarded = True
+            self.discarded_reason = "error in get_topmost_scope"
+            for src, targ, lbl in self.dmrs_nxDG.edges(data = 'label'):
+                if lbl in ['RSTR/H']:
+                    continue
+                if self._is_edge_scopal(lbl):
+                    # print (src, targ, lbl)
+                    self.scope2par_scope[self.node2scope[targ]] = self.node2scope[src]  
+
+        topo_sorted_nodes = list(toposort(self.functor_node2cc_nodes))
+        self.cc_dep_idx2nodes = {idx: list(d_set) for idx, d_set in enumerate(coord_conj_deps.itersets())}
+
+        self.cc_dep_idx2sorted_nodes = defaultdict(list)
+        for cc_dep_idx, nodes in self.cc_dep_idx2nodes.items():
+            cc_dep = {node: self.functor_node2cc_nodes[node] for node in nodes}
+            topo_sorted_nodes = list(toposort(cc_dep))
+            topo_sorted_nodes_flattened = [node for nodes in topo_sorted_nodes for node in nodes]
+            self.cc_dep_idx2sorted_nodes[cc_dep_idx] = topo_sorted_nodes_flattened
+            self.cc_dep_idx2sorted_nodes[cc_dep_idx].reverse()
+        self.node2cc_dep_idx = {node: idx for idx, nodes in self.cc_dep_idx2sorted_nodes.items() for node in nodes}
+
+        return True
 
     def _is_lexical_pred(self, pred, pred_pos):
         return pred_pos in self.config["lexical_pos"] and not pred in self.config['ignore']
 
-    def _has_pred_func(self, pred, pred_pos):
+    def _has_pred_func(self, node):
+        pred, pred_pos = self.dmrs_nxDG.nodes[node]['predicate'], self.dmrs_nxDG.nodes[node]['pos']
         return any([
-            not pred_pos in ["S", "q"] and not self._is_logic_pred(pred) and not pred in self.config['ignore'],
+            all([
+                # not pred_pos in ["S", "q"],
+                pred_pos in ["n", "a", "v", "p"],
+                not any([
+                    self._is_logic_pred_of_type(node, LOGIC_PRED_TYPE_X),
+                    self._is_logic_pred_of_type(node, LOGIC_PRED_TYPE_H),
+                    self._is_logic_pred_of_type(node, LOGIC_PRED_TYPE_C),
+                    self._is_logic_pred_of_type(node, LOGIC_PRED_TYPE_S)
+                ]),
+                # not self._get_scopal_adv_out_edge(node)[0] and self.config["ignore_scopal_adv"],
+                not pred in self.config['ignore']
+            ]),
             pred in self.config['abs_pred_func']['sem'],
             pred in self.config['abs_pred_func']['carg'],
-            pred in self.config['abs_pred_func']['neg']
+            pred in self.config['abs_pred_func']['cpd']
+            # pred in self.config['abs_pred_func']['neg']
         ])
 
-    def _has_intr_var(self, pred, pred_pos):
+    def _has_intr_var(self, node):
+        pred, pred_pos = self.dmrs_nxDG.nodes[node]['predicate'], self.dmrs_nxDG.nodes[node]['pos']
         return any([
-            not pred_pos in ["S", "q"] and not self._is_logic_pred(pred) and not pred in self.config['ignore'],
-            pred in self.config['abs_pred_func']['sem'], # include this?
+            all([
+                # not pred_pos in ["S", "q"],
+                pred_pos in ["n", "a", "v", "p"],
+                not self._is_logic_pred_of_type(node, LOGIC_PRED_TYPE_S),
+                # self._get_scopal_adv_out_edge(node)[1] and self.config["ignore_scopal_adv"],
+                not pred in self.config['ignore']
+            ]),
+            pred in self.config['abs_pred_func']['sem'],
             pred in self.config['abs_pred_func']['carg'],
-            pred in self.config['abs_pred_func']['neg']
+            pred in self.config['transparent_preds']
+            # pred in self.config['abs_pred_func']['neg']
         ])
-    def _is_logic_pred(self, pred):
-        return pred in self.config['logical_preds'] and not pred in self.config['ignore']
+
+    def _is_logic_pred_of_type(self, node, op_type):
+        # check only the predicate
+        pred = self.node2pred[node]
+        return pred in self.config['logical_preds'][op_type]
+        
+    def _get_coord_conj_obj2targ(self, node):
+        # check also the arguments of node; return the set of outedges
+        arg2targ, op = None, None
+        pred = self.node2pred[node]
+        for op_type in [LOGIC_PRED_TYPE_C, LOGIC_PRED_TYPE_H, LOGIC_PRED_TYPE_X]:
+            if self._is_logic_pred_of_type(node, op_type):
+                req_args, op = self.config['logical_preds'][op_type][pred]
+                # args_wo_scope = [arg.split("/")[0] for arg in args]
+                out_edges = [e for e in self.dmrs_nxDG.out_edges(node, keys = True, data = 'label') if self.get_edge_arg_lbl(e[3]) in req_args]
+                arg2targ = {self.get_edge_arg_lbl(e[3]): e[1] for e in out_edges}
+                if any([
+                    set(arg2targ.keys()) == set(req_args),
+                    arg2targ and op_type in [LOGIC_PRED_TYPE_H, LOGIC_PRED_TYPE_X],
+                    any([
+                        'L-INDEX' in arg2targ and 'L-HNDL' in arg2targ,
+                        'R-INDEX' in arg2targ and 'R-HNDL' in arg2targ
+                    ]) and op_type == LOGIC_PRED_TYPE_C
+                ]):
+                    break
+        return arg2targ, op
+
+    def _get_logic_node_out_edges(self, node):
+        # check also the arguments of node; return the set of outedges
+        pred = self.node2pred[node]
+        # if self._is_logic_pred_of_type(node, LOGIC_PRED_TYPE_S):# and not pred in self.config['ignore']:
+        req_args, op = self.config['logical_preds'][LOGIC_PRED_TYPE_S][pred]
+        out_edges = [e for e in self.get_out_edges_arg(node) if e[3] in req_args]
+        out_edges_lbl = [e[3] for e in out_edges]
+        if out_edges_lbl == req_args:
+            return out_edges, op
+        if out_edges_lbl[::-1] == req_args:
+            return out_edges[::-1], op
+        elif op in ["{}-aANDb".format(LOGIC_PRED_TYPE_S), "{}-aAND!b".format(LOGIC_PRED_TYPE_S)] and len(out_edges) == 1:
+            if out_edges_lbl[0] == req_args[0]:
+                return [out_edges[0], None], op
+            elif out_edges_lbl[0] == req_args[1]:
+                return [None, out_edges[0]], op
+        return [None, None], op
+
+    def _get_scopal_node_out_edge(self, node):
+        # currently handle also scopal verbs, nouns, adjectives ...
+        # want(w, x, h) => keep want(w, x)? and repeated want(w, x) if I want apples and oranges? (problematic if using product fuzzy logic)
+        pred = self.node2pred[node]
+        out_scopal_edges = [e for e in self.dmrs_nxDG.out_edges(node, keys = True, data = 'label') if self._is_edge_scopal(e[3])]
+        out_nonscopal_edges = [e for e in self.dmrs_nxDG.out_edges(node, keys = True, data = 'label') if not self._is_edge_scopal(e[3])]
+        return out_scopal_edges, out_nonscopal_edges
     
-    @staticmethod
-    def _get_pred_func_name(pred, arg, rm_sec_lbl = True):
+    def _get_pred_func_name(self, pred, arg, rm_sec_lbl = True):
         if rm_sec_lbl:
-            arg = arg.split("/")[0]
+            arg = self.get_edge_arg_lbl(arg)
         return pred + "@" + arg
 
+    @staticmethod
+    def _is_edge_scopal(edge_lbl):
+        return edge_lbl.endswith("/H") or edge_lbl.endswith("/HEQ")
+
     def _is_frequent(self, key, counter, min_freq):
+        if not counter:
+            return True
         if not self.filter_min_freq:
             return True
         else:
             return counter[key] >= min_freq
 
-    def _compose_expr(self, op, left_expr, right_expr):
+    def _compose_expr_unary(self, op, expr):
         composed_expr = None
-        if isinstance(left_expr, dict):
-            if not self._is_frequent(left_expr['pred_func'], self.pred_func2cnt, self.min_pred_func_freq):
-                return composed_expr
-        if isinstance(right_expr, dict):
-            if not self._is_frequent(right_expr['pred_func'], self.pred_func2cnt, self.min_pred_func_freq):
-                return composed_expr
-        if left_expr and right_expr:
-            composed_expr = [op, left_expr, right_expr]
-        elif left_expr:
-            composed_expr = left_expr
-        elif right_expr:
-            composed_expr = right_expr
+        if op == NEG and expr:
+            composed_expr = [NEG, expr]
+        else:
+            composed_expr = expr
         return composed_expr
 
-    def _dfs(self, curr_node, remote_node, remote_edge, par_is_logic_pred, node2visited):
-        
-        sub_logic_expr = None
-        
-        node_prop = self.dmrs_nxDG.nodes[curr_node]
-        pred, pred_lemma, pred_pos, cvarsort = [node_prop.get(k) for k in ['predicate', 'lemma', 'pos', 'cvarsort']]
-                    
-        if pred_pos in "q":
-            if pred in self.config["neg_quantifier"]:
-                pass
-                # self.logic_expr.append(["AND", ["!", _dfs()]])
-        
-        if self._is_logic_pred(pred):
+    def _compose_expr_binary(self, op, left_expr, right_expr):
+        composed_expr = None
+        compose_left, compose_right = False, False
+        if left_expr:
+            compose_left = True 
+            # if isinstance(left_expr, dict):
+            #     if not self._is_frequent(left_expr['pred_func'], self.pred_func2cnt, self.min_pred_func_freq):
+            #         compose_left = False 
+        if right_expr:
+            compose_right = True 
+            # if isinstance(right_expr, dict):
+            #     if not self._is_frequent(right_expr['pred_func'], self.pred_func2cnt, self.min_pred_func_freq):
+            #         compose_right = False
 
-            args_op = self.config['logical_preds'][pred]
-            args = args_op["args"]
-            args_wo_scope = [arg.split("/")[0] for arg in args]
-            op = args_op["op"]
-            # print (pred, op)
-            if op in self.op2truth_v:
+        if compose_left and compose_right:
+            composed_expr = [op, left_expr, right_expr]
+        elif compose_left:
+            composed_expr = self._compose_expr_unary(
+                False,
+                left_expr
+            )
+        elif compose_right:
+            composed_expr = self._compose_expr_unary(
+                op in ["S-aAND!b"],
+                right_expr
+            )
+        return composed_expr
 
-                # out_edges = list(e for e in self.dmrs_nxDG.out_edges(curr_node, data = 'label') if e[2] in args)
-                out_edges = list(e for e in self.dmrs_nxDG.out_edges(curr_node, data = 'label') if e[2].split("/")[0] in args_wo_scope)
+    def _count_outscoping_neg_qtfr(self):
+        pass
+    
+    @staticmethod
+    def get_edge_arg_lbl(edge_lbl):
+        return edge_lbl.split("/")[0]
 
-                # To be done: neg
-                if op == '!a':
-                    pass
-                # To be done: partial conj (without, say, L-INDEX)
+    @staticmethod
+    def get_edge_sec_lbl(edge_lbl):
+        return edge_lbl.split("/")[1]
+
+    def get_out_edges_arg(self, node, edge_types = None):
+        out_edges = [e for e in self.dmrs_nxDG.out_edges(node, keys = True, data = 'label')]
+        if edge_types:
+            out_edges_arg = [e for e in out_edges
+                if e[3] != "MOD/EQ" and self.get_edge_sec_lbl(e[3]) in edge_types
+            ]
+        else:
+            out_edges_arg = [e for e in out_edges
+                if e[3] != "MOD/EQ"
+            ]
+        return out_edges_arg
+
+    def get_in_edges_arg(self, node, edge_types = None):
+        in_edges = [e for e in self.dmrs_nxDG.in_edges(node, keys = True, data = 'label')]
+        if edge_types:
+            in_edges_arg = [e for e in in_edges
+                if e[3] != "MOD/EQ" and self.get_edge_sec_lbl(e[3]) in edge_types
+            ]
+        else:
+            in_edges_arg = [e for e in in_edges
+                if e[3] != "MOD/EQ"
+            ]
+        return in_edges_arg
+
+    def _build_sub_arg0_logic_expr(self, curr_node):
+        sub_arg0_logic_expr = None
+        if self._has_pred_func(curr_node):
+            curr_pred = self.node2pred[curr_node]
+            arg0pred_func_name = self._get_pred_func_name(curr_pred, "ARG0")
+            if self._is_frequent(arg0pred_func_name, self.pred_func2cnt, self.min_pred_func_freq):
+                arg0pred_func = {"pred_func_name": arg0pred_func_name, "args": [curr_node]}
+                self.pred_func_nodes.add(curr_node)
+            # also instantiate args of nominals, if any
+                pred_funcs = None
+            # if self.dmrs_nxDG.nodes[curr_node]['cvarsort'] == LOGIC_PRED_TYPE_X:
+            #     out_edges_arg = self.get_out_edges_arg(curr_node)
+            #     if out_edges_arg:
+            #         # e.g., I heard the claim that I do not run and swim
+            #         pred_funcs = self._get_pred_funcs(self, curr_node, out_edges_arg, curr_node, [{}])
+            #         # pred_funcs = [{"pred_func": self._get_pred_func_name(self.node2pred[e[0]], e[3]), "args": [node, e[1]]} for e in out_edges]
+            #         # sub_arg0_logic_expr = reduce(lambda e1, e2: self._compose_expr_binary("aANDb", e2, e1), pred_funcs)
+                sub_arg0_logic_expr = self._compose_expr_binary("aANDb", arg0pred_func, pred_funcs)
+        return sub_arg0_logic_expr
+
+    def _get_pred_func(self, remote_edge, conj2node = {}):
+        pred_func = None
+        src, targ, key, lbl = remote_edge
+        pred = self.node2pred[src]
+        pred_func_name = self._get_pred_func_name(pred, lbl)
+        if self._is_frequent(pred_func_name, self.pred_func2cnt, self.min_pred_func_freq):
+            if conj2node:
+                conj_targ = None
+                conj_targ_temp = conj2node.get(targ)
+                while conj_targ_temp:
+                    conj_targ = conj_targ_temp
+                    conj_targ_temp = conj2node.get(conj_targ)
+                if conj_targ != None:
+                    targ = conj_targ
+            if targ in  self.pred_func_nodes:
+                pred_func = {
+                    "pred_func_name": pred_func_name,
+                    "args": [src, targ]
+                }
+        return pred_func
+
+    def _get_pred_funcs(self, curr_node, curr_scope, curr_scope_nodes, top_scopes, conj2node, node_edge_idx_tbd):
+
+        full_pred_func = None
+
+        remote_node, remote_edge_idx = None, None
+        start = True
+        if node_edge_idx_tbd != None:
+            remote_node, remote_edge_idx = node_edge_idx_tbd
+            if remote_node == curr_node:
+                start = False
+
+        cc_arg_found = False
+        for edge_idx, curr_edge in enumerate(self.node2pred_func_order[curr_node]):
+            # print ("getting pf", curr_edge, conj2node, node_edge_idx_tbd)
+            pred_func = None
+            op = None
+            src, targ, key, lbl = curr_edge
+            if start == False and remote_node == curr_node:
+                if edge_idx == remote_edge_idx:
+                    start = True
+            if not start:
+                continue
+            if self.node2is_trsprt_obj[targ]:
+                for targ_src, targ_targ, targ_key, targ_lbl in self.get_out_edges_arg(targ):
+                    if self.get_edge_arg_lbl(targ_lbl) == 'ARG1':
+                        targ = targ_targ
+                        break
+            if self._is_edge_scopal(lbl):
+                # include want(w) -arg1/h-> x as want(w, x)?
+                h_targ = targ
+                next_scope = self.node2scope[h_targ]
+                next_scope_nodes = self.scope2nodes[next_scope].copy()
+                # print (curr_node, "F")
+                pred_func = self._build_partial_logic_expr(next_scope, next_scope_nodes, [], conj2node, node_edge_idx_tbd, {})
+                op = "pred_func_/H-aANDb"
+            elif self.node2is_cc_obj[targ]:
+                if targ in conj2node:
+                    pred_func = self._get_pred_func(curr_edge, conj2node)
+                    op = "pred_func_expanded_cc-aANDb"
                 else:
-                    if len(out_edges) == 2:
-                    #     print (pred, out_edges, self.dmrs_nxDG.out_edges(curr_node, data = 'label'), args_wo_scope)
-                    # print ([out_edges[0], out_edges[1]], "\t", args)
-                        if [out_edges[0][2], out_edges[1][2]] == args:
-                            sub_logic_expr = self._compose_expr(op,
-                                                        self._dfs(out_edges[0][1], remote_node, remote_edge, True, node2visited),
-                                                        self._dfs(out_edges[1][1], remote_node, remote_edge, True, node2visited))
-                        elif [out_edges[1][2], out_edges[0][2]] == args:
-                            sub_logic_expr = self._compose_expr(op,
-                                                        self._dfs(out_edges[1][1], remote_node, remote_edge, True, node2visited),
-                                                        self._dfs(out_edges[0][1], remote_node, remote_edge, True, node2visited))
-                    elif len(out_edges) == 1:
-                        sub_logic_expr = self._compose_expr("aANDb", # TBD
-                                                       self._dfs(out_edges[0][1], remote_node, remote_edge, True, node2visited),
-                                                       sub_logic_expr)
+                    # cc_dep_idx = self.node2cc_dep_idx[targ]
+                    # cc_dep_nodes = self.cc_dep_idx2sorted_nodes[cc_dep_idx].copy()
+                    # next_node = cc_dep_nodes.pop(0)
+                    next_scope = self.node2scope[targ]
+                    next_scope_nodes = self.scope2nodes[next_scope].copy()
+                    next_scope_nodes.remove(targ)
+                    curr_scope_nodes.insert(0, curr_node)
+                    top_scopes_new = [curr_scope]# + top_scopes
+                    remote_scope2nodes = {curr_scope: curr_scope_nodes}
+                    # print ("top_scopes_new:", top_scopes_new)
+                    pred_func = self._expand_coord_conj(targ, next_scope, next_scope_nodes, top_scopes_new, conj2node, curr_scope, curr_scope_nodes, (curr_node, edge_idx), remote_scope2nodes)
+                    op = "pred_func_cc-aANDb"
+                    cc_arg_found = True
+            elif self._has_intr_var(targ):# or self._is_coord_conj(targ):
+                # print ("has:", targ)
+                pred_func = self._get_pred_func(curr_edge, conj2node)
+                op = "pred_func-aANDb"
+            # print ("pred_func:", pred_func)
+            full_pred_func = self._compose_expr_binary(
+                op,
+                pred_func,
+                full_pred_func
+            )
+            if cc_arg_found:
+                break
 
-        if self._has_pred_func(pred, pred_pos):
-            if par_is_logic_pred and remote_node and remote_edge:
-                remote_edge_src, remote_edge_targ, remote_edge_key = remote_edge
-                remote_pred = self.node2pred[remote_node]
-                remote_edge_lbl = self.dmrs_nxDG.edges[remote_edge_src, remote_edge_targ, remote_edge_key]['label']
-                # print ("remote:", remote_pred, remote_edge_lbl)
-                sub_logic_expr = self._compose_expr("aANDb",
-                                               {"pred_func": self._get_pred_func_name(remote_pred, remote_edge_lbl), "args": [remote_node, curr_node]},
-                                               sub_logic_expr)
+        return full_pred_func
+   
+
+    def _expand_coord_conj(self, curr_node, curr_scope, curr_scope_nodes, top_scopes, conj2node, remote_scope, remote_scope_nodes, node_edge_idx_tbd, remote_scope2nodes = {}):
+        # ref: https://github.com/delph-in/docs/wiki/SynSem_Problems_ScopalNonScopal
+        if self.node2is_cc_obj[curr_node]:
+            # cc: coordination conjunction
+            cc_or_eq_exprs = [None, None] # if has handle arguments, proceed to dgtr scope; otherwise, compute EQ's expr
+            cc_arg2targ, op = self._get_coord_conj_obj2targ(curr_node)
+            # print (curr_node, cc_arg2targ)
+            for idx, arg in enumerate(['L', 'R']):
+                h_targ, e_targ = cc_arg2targ.get('{}-HNDL'.format(arg)), cc_arg2targ.get('{}-INDEX'.format(arg))
+                if h_targ != None or e_targ != None:
+                    if e_targ != None:
+                        conj2node[curr_node] = e_targ
+                        # print (curr_node, "-->", e_targ)
+                    if h_targ != None:
+                        has_dgtr_scope = True
+                        next_scope = self.node2scope[h_targ]
+                        next_scope_nodes = self.scope2nodes[next_scope].copy()
+                        # print (curr_node, "A")
+                        cc_expr = None
+                        if not self.node2is_cc_obj[h_targ]:
+                            cc_expr = self._build_partial_logic_expr(next_scope, next_scope_nodes, [], conj2node, None, remote_scope2nodes.copy())
+                        # print (curr_node, "B")
+                        # eq_expr = self._build_partial_logic_expr(remote_scope, remote_scope_nodes.copy(), top_scopes.copy(), conj2node, node_edge_idx_tbd, remote_scope2nodes.copy())
+                        eq_expr = self._expand_coord_conj(h_targ, curr_node, curr_scope, top_scopes.copy(), conj2node, remote_scope, remote_scope_nodes.copy(), node_edge_idx_tbd, remote_scope2nodes.copy())
+                        cc_or_eq_exprs[idx] = self._compose_expr_binary('cc^eq-aANDb', cc_expr, eq_expr)
+                    elif e_targ != None:
+                        # print ("ECC:", e_targ, top_scopes, arg)
+                        # cc_or_eq_exprs[idx] = self._build_partial_logic_expr(curr_scope, curr_scope_nodes, top_scopes, conj2node, scope2nodes_tbd.copy())
+                        next_scope = self.node2scope[e_targ]
+                        next_scope_nodes = [e_targ]
+                        top_scopes_new = [curr_scope] + top_scopes
+                        cc_or_eq_exprs[idx] = self._expand_coord_conj(e_targ, next_scope, next_scope_nodes, top_scopes_new.copy(), conj2node, curr_scope, curr_scope_nodes, node_edge_idx_tbd, remote_scope2nodes.copy())
+                    if curr_node in conj2node:
+                        del conj2node[curr_node]
+                    # cc_eq_exprs[idx] = self._compose_expr_binary('aANDb-cc^eq', cc_expr[idx], eq_expr[idx])
+            cc_or_eq_expr = self._compose_expr_binary(op, cc_or_eq_exprs[0], cc_or_eq_exprs[1])
+            # if curr_node in conj2node:
+            #     del conj2node[curr_node]
+            return cc_or_eq_expr
+        else:
+            return self._build_partial_logic_expr(None, [], top_scopes.copy(), conj2node, node_edge_idx_tbd, remote_scope2nodes)
+
+
+    def _build_partial_logic_expr(self, curr_scope, curr_scope_nodes, top_scopes, conj2node, node_edge_idx_tbd = None, remote_scope2nodes = {}):
         
-            
+        agg_partial_logic_expr = None
 
-               
-        if not node2visited[curr_node]:     
-            
-            node2visited[curr_node] = True
-            
-            if self._has_pred_func(pred, pred_pos):
-                curr_pred_func = self._get_pred_func_name(pred, "ARG0")
-                sub_logic_expr = self._compose_expr("aANDb",
-                                               {"pred_func": curr_pred_func, "args": [curr_node]},
-                                               sub_logic_expr)
-                if self._is_frequent(curr_pred_func, self.pred_func2cnt, self.min_pred_func_freq):
-                    self.pred_func_node.add(curr_node)
-            
-            out_edges = list(e for e in self.dmrs_nxDG.out_edges(curr_node, keys = True, data = 'label'))
-            for src, targ, key, lbl in out_edges:
-                targ_node_prop = self.dmrs_nxDG.nodes[targ]
-                targ_pred, targ_pred_lemma, targ_pred_pos, targ_cvarsort = [targ_node_prop.get(k) for k in ['predicate', 'lemma', 'pos', 'cvarsort']]
-                # if curr pred is a function AND targ pred has intrinsic variable; and edge label is not MOD/EQ
-                if self._has_pred_func(pred, pred_pos) and self._has_intr_var(targ_pred, targ_pred_pos):
-                    if lbl != "MOD/EQ":
-                        sub_logic_expr = self._compose_expr("aANDb",
-                                                       {"pred_func": self._get_pred_func_name(pred, lbl), "args": [curr_node, targ]},
-                                                       sub_logic_expr)
-                new_remote_node, new_remote_edge = None, None
-                if self._has_pred_func(pred, pred_pos):
-                    new_remote_node = curr_node
-                    new_remote_edge = (src, targ, key)
-                l_sub_logic_expr = self._dfs(targ, new_remote_node, new_remote_edge, False, node2visited)
-                sub_logic_expr = self._compose_expr("aANDb",
-                                               l_sub_logic_expr,
-                                               sub_logic_expr)
+        partial_logic_expr = None
+        # print (curr_scope, curr_scope_nodes, top_scopes, conj2node, node_edge_idx_tbd, remote_scope2nodes)
 
-                                  
-        return sub_logic_expr        
-    
-    
+        if curr_scope in remote_scope2nodes:
+            curr_scope_nodes = remote_scope2nodes[curr_scope]
+            del remote_scope2nodes[curr_scope]
+            # print ("curr_scope_nodes:", curr_scope_nodes)
+
+        if curr_scope_nodes:
+
+            curr_node = curr_scope_nodes.pop(0)
+            curr_pred = self.node2pred[curr_node]
+
+            if self.node2is_cc_obj[curr_node] and not node_edge_idx_tbd and curr_node not in conj2node:
+                top_scopes = [curr_scope] + top_scopes
+                # print (curr_node, "C")
+                return self._expand_coord_conj(curr_node, curr_scope, curr_scope_nodes, top_scopes, conj2node, None, [], node_edge_idx_tbd, remote_scope2nodes)
+            elif not self.node2is_cc_obj[curr_node] and not self.node2is_trsprt_obj[curr_node]:
+                pred_funcs_logic_expr = None
+                scopal_expr = None
+                # either a predicate with predicate functions ...
+                if self._has_pred_func(curr_node):
+                    pred_funcs_logic_expr = self._get_pred_funcs(curr_node, curr_scope, curr_scope_nodes.copy(), top_scopes, conj2node, node_edge_idx_tbd)
+                    # print (curr_pred, "full_pf:", pred_funcs_logic_expr)
+                # or a scopal logical operator ...
+                elif self._is_logic_pred_of_type(curr_node, LOGIC_PRED_TYPE_S) or self._is_coord_conj(curr_node):
+                    scopal_exprs = [None, None]
+                    op = None
+                    if self._is_logic_pred_of_type(curr_node, LOGIC_PRED_TYPE_S):
+                        scopal_out_edges, op = self._get_logic_node_out_edges(curr_node)
+                        # print (curr_node, scopal_out_edges)
+                        if op in UNARY_SCOPAL_OP:
+                            # assert len(scopal_out_edges) == 1
+                            pass
+                        for idx, e in enumerate(scopal_out_edges):
+                            if e != None:
+                                h_targ = e[1]
+                                next_scope = self.node2scope[h_targ]
+                                next_scope_nodes = self.scope2nodes[next_scope].copy()
+                                # print (curr_node, "D")
+                                scopal_exprs[idx] = self._build_partial_logic_expr(next_scope, next_scope_nodes, [], conj2node, node_edge_idx_tbd, remote_scope2nodes.copy())
+                            else:
+                                scopal_exprs[idx] = None
+                    else:
+                        cc_arg2targ, op = self._get_coord_conj_obj2targ(curr_node)
+                        for idx, arg in enumerate(['L', 'R']):
+                            h_targ, e_targ = cc_arg2targ.get('{}-HNDL'.format(arg)), cc_arg2targ.get('{}-INDEX'.format(arg))
+                            if h_targ != None:
+                                has_dgtr_scope = True
+                                next_scope = self.node2scope[h_targ]
+                                next_scope_nodes = self.scope2nodes[next_scope].copy()
+                                # print (curr_node, "E")
+                                scopal_exprs[idx] = self._build_partial_logic_expr(next_scope, next_scope_nodes, [], conj2node, node_edge_idx_tbd, remote_scope2nodes.copy())
+                            else:
+                                scopal_exprs[idx] = None
+                    if op in BINARY_SCOPAL_OP or self._is_coord_conj(curr_node):
+                        scopal_expr = self._compose_expr_binary(op, scopal_exprs[0], scopal_exprs[1])
+                    elif op in UNARY_SCOPAL_OP:
+                        scopal_expr = self._compose_expr_unary(op, scopal_exprs[0])
+                # or not on the scopal operator list, but contains scopal argments
+                # else:
+                #     scopal_out_edges, out_nonscopal_edges = self._get_scopal_node_out_edge(curr_node)
+                #     for idx, e in enumerate(scopal_out_edges):
+                #         if e:
+                #             h_targ = e[1]
+                #             next_scope = self.node2scope[h_targ]
+                #             next_scope_nodes = self.scope2nodes[next_scope].copy()
+                #             print (curr_node, "F")
+                #             next_scope_logic_expr = self._build_partial_logic_expr(next_scope, next_scope_nodes, top_scopes.copy(), conj2node, node_edge_idx_tbd, remote_scope2nodes.copy())
+                #             scopal_expr = self._compose_expr_binary("aANDb-/H", next_scope_logic_expr, scopal_expr)
+                pf_scopal_expr = self._compose_expr_binary('2in1-aANDb', pred_funcs_logic_expr, scopal_expr)
+                # print (curr_node, "G")
+                eq_expr = self._build_partial_logic_expr(curr_scope, curr_scope_nodes, top_scopes, conj2node, node_edge_idx_tbd, remote_scope2nodes)
+                partial_logic_expr = self._compose_expr_binary('pf^eq-aANDb', pf_scopal_expr, eq_expr) 
+            else:
+                partial_logic_expr = self._build_partial_logic_expr(curr_scope, curr_scope_nodes, top_scopes, conj2node, node_edge_idx_tbd, remote_scope2nodes)
+            curr_scope_nodes.insert(0, curr_node)
+            return partial_logic_expr
+            
+        else:
+            next_partial_logic_expr = None
+            if top_scopes:
+                next_partial_top_scope = top_scopes.pop(0)
+                next_partial_top_scope_nodes = self.scope2nodes[next_partial_top_scope].copy()
+                # print (curr_scope, "H")
+                next_partial_logic_expr = self._build_partial_logic_expr(next_partial_top_scope, next_partial_top_scope_nodes, top_scopes, conj2node, node_edge_idx_tbd, remote_scope2nodes)
+                top_scopes.insert(0, next_partial_top_scope)
+
+            return next_partial_logic_expr
+
+
     def _build_logic_expr(self):
+
+        # e.g., I run or1(EQ) swim happily or2(EQ) sadly loudly(EQ)
+        # => or1(o1, run(r), swim(s)) and or2(o2, happy(h, o1), sad(s, o1)) and loudly(o1)
+        # for-loop (recursive) over coordinations? (within same scope?)
+
+        # a) right or first
+        # (happy(h, r) andEQ run(r) andEQ loudly(r) or1 happy(h, s) and swim(s) andEQ loudly(s))
+        # or2
+        # (sad(s, r) andEQ run(r) andEQ loudly(r) or1 sad(s, s) andEQ swim(s) andEQ loudly(s))
+
+        # b) left or first
+        # (run(r) andEQ (happy(h, r) or2 sad(s, r)) andEQ loudly(r))
+        # or1
+        # (swim(s) andEQ (happy(h, s) or2 sad(s, s)) andEQ loudly(s))
+
+        # c) loudly first
+        # loudly(r) andEQ run(r) or loudly(s) and swim(s)
+
+        # what about e.g., I run,(imp) walk or1(EQ) swim happily or2(EQ) sadly loudly(EQ)
+        # no dogs or(EQ) cats that eat(EQ) run(NEQ)
+        # Not(eat(d) and run(d) or1 eat(c) and run(c))
+        # https://delph-in.github.io/delphin-viz/demo/#input=I%20run,%20walk%20or%20swim%20happily%20or%20sadly%20loudly&count=5&grammar=erg1214-uw&tree=true&mrs=true&dmrs=true
+        # (happy(h, r) andEQ run(r) andEQ loudly(r) imp (happy(h, w) andEQ walk(w) andEQ loudly(w) or1 happy(h, s) and swim(s) andEQ loudly(s))
+        # or2
+        # (sad(s, r) andEQ run(r) andEQ loudly(r) imp (sad(s, w) andEQ walk(w) andEQ loudly(w) or1 sad(s, s) andEQ swim(s) andEQ loudly(s))
+
+        # print ("\n\n\n\n")
         
-        # for decoders
-        self.logic_expr = None
-        sub_logic_expr = None
+        full_logic_expr = None
 
-        # for encoder
-        self.pred_func_node = set()
-
-        sources = [node for node in self.dmrs_nxDG.nodes if self.dmrs_nxDG.in_degree(node) == 0]
+        #discard infrequent arg0_pred_func
+        arg0_logic_expr = None
+        for node, node_prop in self.dmrs_nxDG.nodes(data = True):
+            sub_arg0_logic_expr = self._build_sub_arg0_logic_expr(node)
+            arg0_logic_expr = self._compose_expr_binary("arg0-aANDb", sub_arg0_logic_expr, arg0_logic_expr)
+        
+        agg_partial_logic_expr = None
         node2visited = {node: False for node in self.dmrs_nxDG.nodes}
-        
-        for node in sources:                          
-            sub_logic_expr = self._dfs(node, None, None, False, node2visited)
-            self.logic_expr = self._compose_expr("aANDb", self.logic_expr, sub_logic_expr)
-    
-    def _draw_logic_expr(self, timestamp = False, name = "err"):
-        
-        def _build_tree(logic_expr_tree, sub_logic_expr, curr_node, par_node, edge_lbl):
-            if isinstance(sub_logic_expr, str):
-                logic_expr_tree.add_node(curr_node, label = sub_logic_expr)
-            elif isinstance(sub_logic_expr, dict):
-                logic_expr_tree.add_node(curr_node, label = "{} {}".format(sub_logic_expr['pred_func'], str(sub_logic_expr['args'])))
-            elif sub_logic_expr:
-                root, left, right = sub_logic_expr
-                logic_expr_tree.add_node(curr_node, label = root)
-                _build_tree(logic_expr_tree, left, curr_node*2, curr_node, 'a')
-                _build_tree(logic_expr_tree, right, curr_node*2+1, curr_node, 'b')
-            if par_node:
-                logic_expr_tree.add_edge(par_node, curr_node, label = edge_lbl)
+        top_scopes = [scope for scope, nodes in self.scope2nodes.items() if all([not self.node2outscoped[node] for node in nodes])]
 
+            # par_scope = self.scope2par_scope.get(functor_scope)
+
+            # while par_scope != None:
+            #     scope2desc_cc_scopes[par_scope].update(list(cc_scopes))
+            #     par_scope = self.scope2par_scope.get(par_scope)
+
+            # functor_top_scope = self._get_topmost_scope(functor_scope)
+            # scope2desc_cc_scopes[functor_top_scope].update(list(cc_scopes))
         
-        logic_expr_tree = nx.DiGraph()
-        _build_tree(logic_expr_tree, self.logic_expr, 1, None, None)
-                
-        time_str = "_" + time.asctime( time.localtime(time.time()) ).replace(" ", "-") if timestamp else ""
-        save_path = "./figures/logic_expr_{}".format(name) + time_str + ".png"
-        ag = to_agraph(logic_expr_tree)
-        ag.layout('dot')
-        ag.draw(save_path)
-        # print ("logic expression tree drawn:", save_path)
+        #remove any top scope that contains cc_arg from outside
+        # print ("dep2sorted:", self.cc_dep_idx2sorted_nodes)
+        # print ("node2dep:", self.node2cc_dep_idx)
+        # print ("scope2topmost_scope:", self.scope2topmost_scope)
+
+        # print (self.scope2nodes)
+        # Top scope order
+        functor_top2cc_top = defaultdict(set)
+        top_scopes_with_cc_arg = set()
+
+        for functor_scope, cc_scopes in self.functor_scope2cc_scopes.items():
+            for cc_scope in cc_scopes:
+                cc_top = self.scope2topmost_scope[cc_scope]
+                functor_top = self.scope2topmost_scope[functor_scope]
+                if cc_top != functor_top:
+                    top_scopes_with_cc_arg.add(cc_top)
+                    functor_top2cc_top[functor_top].add(cc_top)
+
+        # print ("functor_top2cc_top:", functor_top2cc_top)
+        topo_sorted_functor_cc_tops = list(toposort(functor_top2cc_top))
+        topo_sorted_functor_cc_tops_flat = [scope for scopes in topo_sorted_functor_cc_tops for scope in scopes]
+        top_scopes_ordered = [
+            scope for scope in top_scopes if scope not in top_scopes_with_cc_arg and scope not in self.top_scope2cc_obj_scopes # topo_sorted_top_scopes_flattened
+        ] + [scope for scope in self.top_scope2cc_obj_scopes if scope not in top_scopes_with_cc_arg] #+ topo_sorted_functor_cc_tops_flat
+        # print ("top_scopes:", top_scopes)
+        # print ("top_scope2cc_obj_scopes:", self.top_scope2cc_obj_scopes)
+        # print ("top_scopes_ordered:", top_scopes_ordered)
+        
+        # EQ node order
+        for scope in self.scope2nodes.copy():
+            topo_sorted_nodes_flattened = []
+            if self.scope2functor_node2cc_nodes[scope]:
+                topo_sorted_nodes = list(toposort(self.scope2functor_node2cc_nodes[scope]))
+                topo_sorted_nodes_flattened = [node for nodes in topo_sorted_nodes for node in nodes if node in self.scope2nodes[scope]]
+            self.scope2nodes[scope] = [
+                node for node in self.scope2nodes[scope] if node not in topo_sorted_nodes_flattened
+            ] + topo_sorted_nodes_flattened#[::-1]
+        # print (self.scope2nodes)
+
+        # predicate function order
+        self.node2pred_func_order = defaultdict(list)
+        for node, node_prop in self.dmrs_nxDG.nodes(data = True):
+            if self._has_pred_func(node):
+                out_edges_arg = self.get_out_edges_arg(node)
+                arg_type2edges = defaultdict(list)
+                for src, targ, key, lbl in out_edges_arg:
+                    if self.node2is_cc_obj[targ]:
+                        arg_type2edges['cc'].append((src, targ, key, lbl))
+                    else:
+                        arg_type2edges['non-cc'].append((src, targ, key, lbl))
+                self.node2pred_func_order[node] = arg_type2edges['non-cc'] +  arg_type2edges['cc']
+        # print ("node2pred_func_order:", self.node2pred_func_order)
+        
+        # mark conj2node for nominalization and eventualities
+        conj2node = defaultdict()
+        for node, node_prop in self.dmrs_nxDG.nodes(data = True):
+            if node_prop['predicate'] in self.config['transparent_preds']:
+                for src, targ, key, lbl in self.get_out_edges_arg(node):
+                    if self.get_edge_arg_lbl(lbl) == 'ARG1':
+                        conj2node[node] = targ
+                        break
+
+
+        # cc_arg_scopes = set()
+        # if self.functor_scope2cc_scopes:
+        #     cc_arg_scopes = set(reduce(lambda x, y: x.union(y), self.functor_scope2cc_scopes.values()))
+
+        # top_scopes_wo_cc_arg = [scope for scope in top_scopes if scope not in cc_arg_scopes]
+        # # sort the expansion order (factorized is better)
+        # # scope with coordination as dgtr scope first
+        # # within each scope, put coordination first
+        # # partial order for both?
+        # cc_functor_scopes_ordered = []
+        # topo_sorted_scopes = list(toposort(self.functor_scope2cc_scopes))
+        # print (self.scope2nodes)
+        # print (top_scopes)
+        # print (self.functor_scope2cc_scopes)
+        # print (top_scopes_wo_cc_arg)
+        # print (topo_sorted_scopes)
+        # for scopes in topo_sorted_scopes:
+        #     for scope in scopes:
+        #         topmost_scope = self._get_topmost_scope(scope)
+        #         cc_functor_scopes_ordered.append(topmost_scope)
+        # cc_functor_scopes_ordered = list(dict.fromkeys(cc_functor_scopes_ordered))
+        # top_scopes_ordered = [
+        #     scope for scope in top_scopes if scope not in cc_functor_scopes_ordered
+        # ] + cc_functor_scopes_ordered
+        # print (cc_functor_scopes_ordered)
+        # print (top_scopes_ordered)
+        # top_scopes_ordered vs. top_scopes_wo_cc_arg
+        if top_scopes_ordered:
+            curr_scope = top_scopes_ordered.pop(0)
+            curr_scope_nodes = self.scope2nodes[curr_scope].copy()
+            # scope_sources = [node for node in self.scope2nodes[curr_scope] if not self.node2outscoped[node]]
+            remote_scope2nodes = defaultdict(list)
+            agg_partial_logic_expr = self._build_partial_logic_expr(curr_scope, curr_scope_nodes, top_scopes_ordered, conj2node, None, remote_scope2nodes)
+        full_logic_expr = self._compose_expr_binary("full-aANDb", arg0_logic_expr, agg_partial_logic_expr)
+        self.logic_expr = full_logic_expr
+        # # join argo here?
+        # # TODO: if predicate only has arg0 and negation is on the predicate, negate the <pred>@arg0?
+        # if self._has_pred_func(curr_node):
+        #   curr_arg0func_name = self._get_pred_func_name(pred, "ARG0")
+        #   curr_arg0_func = {"pred_func": curr_arg0func_name, "args": [curr_node]}
+        # # for encoder
+        # # TODO: how to handle infrequent pred_func? e.g., u_fwfwe@arg2(e, x)
+        #   if self._is_frequent(curr_pred_func, self.pred_func2cnt, self.min_pred_func_freq):
+        #       self.pred_func_nodes.add(curr_node)
 
 
     def __call__(self, sample):
@@ -284,32 +871,53 @@ class TruthConditions(object):
         # print (snt_id)
         dmrs_nodelink_dict = sample['dmrs']
         self.dmrs_nxDG = nx.readwrite.json_graph.node_link_graph(dmrs_nodelink_dict)
-                                    # self.node2tcf = defaultdict(list)
-                                    # self.neg_scope = Counter()
-                                    # self.node2conj_args = defaultdict(list)
         
-        # erg_digraph = dg_util.Erg_DiGraphs()
-        # erg_digraph.init_dmrs_from_nxDG(self.dmrs_nxDG)
-        # erg_digraph.draw_dmrs(name = snt_id)
-        
+        self.discarded_reason = None
         self._get_node2pred()
 
-        self._get_lexical_pred()
-
         self._get_scopes()
-        
-        self._build_logic_expr()
+            
+        if not self.discarded:
+            self._get_transparent_obj_nodes()
+
+
+        if not self.discarded:
+            # print ("cc nodes:", self.node2is_cc_obj)
+            try:
+                self._get_coord_conj_obj_nodes()
+            except Exception as e:
+                self.discarded = True
+                self.discarded_reason = str(e)
+                # print (e)
+                # erg_digraph = dg_util.Erg_DiGraphs()
+                # erg_digraph.init_dmrs_from_nxDG(self.dmrs_nxDG)
+                # erg_digraph.draw_dmrs(name = snt_id)
+                # print ()
+
+        if not self.discarded:
+            try:
+                self._build_logic_expr()
+            except Exception as e:
+                self.discarded = True
+                self.discarded_reason = str(e)
+                # erg_digraph = dg_util.Erg_DiGraphs()
+                # erg_digraph.init_dmrs_from_nxDG(self.dmrs_nxDG)
+                # erg_digraph.draw_dmrs(name = snt_id)
+                # print ()
+
+        if not self.discarded:
+            self._get_lexical_pred()
 
         self._check_discard()
         
-        # self._draw_logic_expr(name = snt_id)
-        
+
         transformed = {
             "discarded": self.discarded,
+            "discarded_reason": self.discarded_reason,
             "node2pred": self.node2pred,
             "encoders": {
-                "pred_func_node": self.pred_func_node,
-                "lexical_preds": self.lexical_preds
+                "pred_func_nodes": list(self.pred_func_nodes),
+                "lexical_preds": list(self.lexical_preds)
             },
             "decoders": {
                 "logic_expr": self.logic_expr

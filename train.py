@@ -1,5 +1,6 @@
 import argparse
 import collections
+from json import decoder
 import torch
 import numpy as np
 import data_loader.data_loaders as module_data
@@ -18,7 +19,8 @@ except NameError:
 
 from pprint import pprint
 import os
-from collections import Counter
+from collections import Counter, defaultdict
+from itertools import chain
 
 # fix random seeds for reproducibility
 SEED = 123
@@ -39,55 +41,54 @@ def main(config):
     MIN_PRED_FUNC_FREQ = config["data_loader"]["args"]["min_pred_func_freq"]
     MIN_LEX_PRED_FREQ = config["data_loader"]["args"]["min_lex_pred_freq"]
 
-    log_dir = "saved/log/TCS/0809_153834"
+    log_dir = os.path.join("saved/log", config["name"])
+    run_dir = os.path.join("saved/run", config["name"])
     # log_dir = config.log_dir
-    pred_func2cnt_file_path = os.path.join(log_dir, "pred_func2cnt.txt")
-    lex_pred2cnt_file_path = os.path.join(log_dir, "lex_pred2cnt.txt")
+    pred_func2cnt_file_path = os.path.join(run_dir, "pred_func2cnt.txt")
+    lex_pred2cnt_file_path = os.path.join(run_dir, "lex_pred2cnt.txt")
+    pred2ix_file_path = os.path.join(run_dir, "pred2ix.txt")
 
-    print ("Initializing decoders ...")
-    decoders = collections.defaultdict()
-    pred_funcs = set()
     pred_func2cnt = Counter()
     with open(pred_func2cnt_file_path) as f:
         line = f.readline()
         while line:
             pred_func, cnt = line.strip().split("\t")
-            if int(cnt) < MIN_PRED_FUNC_FREQ:
-                break
-            decoder_model = None
-            if pred_func.endswith("ARG0"):
-                decoder_model = config.init_obj('one_place_decoder_arch', module_arch)
-                pred_funcs.add(pred_func.split("@")[0])
-                pred_func2cnt[pred_func] = int(cnt)
-            else:
-                decoder_model = config.init_obj('two_place_decoder_arch', module_arch)
-            decoders[pred_func] = decoder_model
+            # if int(cnt) < MIN_PRED_FUNC_FREQ:
+            #     break
+            pred_func2cnt[pred_func] = int(cnt)
             line = f.readline()
 
-
-    print ("Initializing encoder ...")
     lex_pred2cnt = Counter()
     with open(lex_pred2cnt_file_path) as f:
         line = f.readline()
         while line:
             lex_pred, cnt = line.strip().split("\t")
-            if int(cnt) < MIN_LEX_PRED_FREQ:
-                break
+            # if int(cnt) < MIN_LEX_PRED_FREQ:
+            #     break
             lex_pred2cnt[lex_pred] = int(cnt)
             line = f.readline()
 
-    lexical_preds = set(lex_pred2cnt)
-    emb_preds = pred_funcs.union(lexical_preds)
+    pred2ix = defaultdict()
+    with open(pred2ix_file_path) as f:
+        line = f.readline()
+        while line:
+            ix, pred = line.strip().split("\t")
+            # if int(cnt) < MIN_PRED_FUNC_FREQ:
+            #     break
+            pred2ix[pred] = int(ix)
+            line = f.readline()
 
-    pred2ix = {pred: ix + 1 for ix, pred in enumerate(emb_preds)}
+    print ("Initializing encoder ...")
+    # lexical_preds = set(lex_pred2cnt)
     num_embs = len(pred2ix)
 
     encoder = config.init_obj('encoder_arch', module_arch, num_embs = num_embs)
     
+    transformed_dir_suffix = os.path.join("transformed", config["name"])
     # setup data_loader instances
-    data_loader = config.init_obj('data_loader', module_data,
-        lex_pred2cnt = lex_pred2cnt, pred_func2cnt = pred_func2cnt)
-    valid_data_loader = data_loader.split_validation()
+    data_loader = config.init_obj('data_loader', module_data, transformed_dir_suffix = transformed_dir_suffix)# lex_pred2cnt = lex_pred2cnt, pred_func2cnt = pred_func2cnt)
+    # valid_data_loader = data_loader.split_validation()
+    valid_data_loader = None
 
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(config['n_gpu'])
@@ -103,50 +104,64 @@ def main(config):
     if len(device_ids) > 1:
         encoder = torch.nn.DataParallel(encoder, device_ids=device_ids)
 
-    print (torch.cuda.list_gpu_processes(device = device))
-    print (torch.cuda.memory_summary(device = device))
+    print ("Initializing decoder ...")
+    sem_funcs = defaultdict()
+    for pred_func in pred_func2cnt:
+        if pred_func.endswith("ARG0"):
+            sem_func = config.init_obj('one_place_sem_func', module_arch)
+        else:
+            sem_func = config.init_obj('two_place_sem_func', module_arch)
+        sem_funcs[pred_func] = sem_func
 
-    print ("Sending decoders to device ...")
-    for pred_func in decoders:
+    print ("Sending semantic functions to device ...")
+    for sem_func in sem_funcs:
     # encoder = config.init_obj('encoder_arch', module_arch)
-        decoders[pred_func]  = decoders[pred_func].to(device)
+        sem_funcs[sem_func] = sem_funcs[sem_func].to(device)
         if len(device_ids) > 1:
-            decoders[pred_func] = torch.nn.DataParallel(decoders[pred_func], device_ids=device_ids)
+            sem_funcs[sem_func] = torch.nn.DataParallel(sem_funcs[sem_func], device_ids=device_ids)
     
-    print (torch.cuda.list_gpu_processes(device=None))
-    print (torch.cuda.memory_summary(device=None))
+    decoder = config.init_obj('decoder_arch', module_arch, sem_funcs = sem_funcs) 
+        
+    # print (torch.cuda.list_gpu_processes(device = device))
+    # print (torch.cuda.memory_summary(device = device))
+
+    # print (torch.cuda.list_gpu_processes(device=None))
+    # print (torch.cuda.memory_summary(device=None))
 
     param_size = 0
     buffer_size = 0
-    for pred_func in decoders:
-        for param in decoders[pred_func].parameters():
+    for sem_func in sem_funcs:
+        for param in sem_funcs[sem_func].parameters():
             param_size += param.nelement() * param.element_size()
-        for buffer in decoders[pred_func].buffers():
+        for buffer in sem_funcs[sem_func].buffers():
             buffer_size += buffer.nelement() * buffer.element_size()
 
     size_all_mb = (param_size + buffer_size) / 1024**2
     print ('#embs in encoder: {}'.format(num_embs))
-    print ('#decoders: {}'.format(len(decoders)))
-    print('agg. decoders size: {:.3f}MB; param: {}MB; buffer: {}MB'.format(size_all_mb, param_size/ 1024**2, buffer_size/ 1024**2))
+    print ('#sem_funcs: {}'.format(len(sem_funcs)))
+    print('agg. sem_funcs size: {:.3f}MB; param: {}MB; buffer: {}MB'.format(size_all_mb, param_size/ 1024**2, buffer_size/ 1024**2))
 
     # get function handles of loss and metrics
     criterion = getattr(module_loss, config['loss'])
+    criterion = None
     metrics = [getattr(module_metric, met) for met in config['metrics']]
 
     # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
-    print ("Getting trainable parameters for the decoders ...")
-    trainable_params = [{'params': decoders[pregarg].parameters()} for pregarg in decoders] 
-    print ("Initializing optimizer for the decoders ...")
-    decoder_optimizer = config.init_obj('optimizer', torch.optim, trainable_params)
+    print ("Getting trainable parameters for the sem_funcs ...")
+    # trainable_params = [{'params': sem_funcs[pregarg].parameters()} for pregarg in sem_funcs] 
+    sem_funcs_params = chain.from_iterable([sem_func.parameters() for _, sem_func in sem_funcs.items()])
+    trainable_sem_funcs_params = filter(lambda p: p.requires_grad, sem_funcs_params)
+    print ("Initializing optimizer for the semantic functions ...")
+    sem_func_optimizer = config.init_obj('optimizer', torch.optim, trainable_sem_funcs_params)
     print ("Initializing learning rate scheduler for the optimizer ...")
-    decoder_lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, decoder_optimizer)
+    sem_func_lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, sem_func_optimizer)
 
-    trainer = Trainer(encoder, pred2ix, decoders, criterion, metrics, decoder_optimizer,
+    trainer = Trainer(encoder, pred2ix, decoder, criterion, metrics, sem_func_optimizer,
                       config=config,
                       device=device,
                       data_loader=data_loader,
                       valid_data_loader=valid_data_loader,
-                      lr_scheduler=decoder_lr_scheduler)
+                      lr_scheduler=sem_func_lr_scheduler)
 
     trainer.train()
 

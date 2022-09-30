@@ -1,7 +1,7 @@
 {
-    "name": "TCS",
+    "name": "TCS_dummy",
     "n_gpu": 1,
-    "data_info_dir": "data/preprocessed_dmrs/info",
+    "data_info_dir": "data/dummy_data/info",
     "encoder_arch": {
         "type": "BSGEncoder",
         "args": {
@@ -33,15 +33,16 @@
     "data_loader": {
         "type": "DmrsDataLoader",
         "args":{
-            "data_dir": "data/preprocessed_dmrs",
-            "transform_config_file_path": "transform/configs/config_28072022.json",
+            "data_dir": "data/dummy_data",
+            "transform_config_file_path": "transform/configs/config_12092022.json",
             "batch_size": 1,
             "shuffle": true,
             "validation_split": 0.1,
             "num_workers": 2,
             "use_custom_collate_fn": true,
-            "min_pred_func_freq": 5000,
-            "min_lex_pred_freq": 500
+            "min_pred_func_freq": 0,
+            "min_lex_pred_freq": 0,
+            "filter_min_freq": false
         }
     },
     "optimizer": {

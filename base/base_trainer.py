@@ -8,12 +8,12 @@ class BaseTrainer:
     """
     Base class for all trainers
     """
-    def __init__(self, encoder, decoders, criterion, metric_ftns, optimizer, config):
+    def __init__(self, encoder, decoder, criterion, metric_ftns, optimizer, config):
         self.config = config
         self.logger = config.get_logger('trainer', config['trainer']['verbosity'])
 
         self.encoder = encoder
-        self.decoders = decoders
+        self.decoder = decoder
         self.criterion = criterion
         self.metric_ftns = metric_ftns
         self.optimizer = optimizer
@@ -112,7 +112,7 @@ class BaseTrainer:
             'encoder_arch': encoder_arch,
             'epoch': epoch,
             'encoder_state_dict': self.encoder.state_dict(),
-            'decoders_state_dict': {predarg: decoder.state_dict() for predarg, decoder in self.decoders.items()},
+            'decoders_state_dict': {sem_func_name: sem_func.state_dict() for sem_func_name, sem_func in self.decoder.sem_funcs.items()},
             'optimizer': self.optimizer.state_dict(),
             'monitor_best': self.mnt_best,
             'config': self.config
@@ -142,7 +142,7 @@ class BaseTrainer:
             self.logger.warning("Warning: Architecture configuration given in config file is different from that of "
                                 "checkpoint. This may yield an exception while state_dict is being loaded.")
         self.encoder.load_state_dict(checkpoint['encoder_state_dict'])
-        [self.decoders[predarg].load_state_dict(checkpoint['decoders_state_dict'][predarg]) for predarg in self.decoders]
+        [self.decoder.sem_func[sem_func_name].load_state_dict(checkpoint['decoders_state_dict'][sem_func_name]) for sem_func_name in self.decoder.sem_funcs]
 
         # load optimizer state from checkpoint only when optimizer type is not changed.
         if checkpoint['config']['optimizer']['type'] != self.config['optimizer']['type']:

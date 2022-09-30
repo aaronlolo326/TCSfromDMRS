@@ -3,10 +3,11 @@ def get_lemma_pos(predicate):
     # extract lemma pos
     pred_lemma, pred_pos = None, None
 
+    if predicate == '_':
+        pred_lemma, pred_pos = None, None
     # unknown predicate starts with 'u_'
-    if predicate.startswith('u_'):
+    elif predicate.startswith('u_'):
         pred_lemma, pred_pos = predicate[2:].rsplit("_",1)
-        
     elif predicate[0] == '_':
         
         try:
@@ -28,7 +29,8 @@ def get_lemma_pos(predicate):
             try:
                 assert predicate in ['_only_child_n_1', '_nowhere_near_x_deg']
             except:
-                print (predicate)
+                pass
+                # print (predicate)
             # if not predicate in ['_only_child_n_1', '_nowhere_near_x_deg']:
             #     print (predicate)
                 
@@ -53,10 +55,10 @@ def get_lemma_pos(predicate):
             print ("fallback:", predicate, pred_lemma, pred_pos)
             
     else:
-        
-        pred_lemma_S, pred_pos_S, *_ = predicate.split("_")
-        if pred_pos_S == 'q':
-            pred_lemma, pred_pos = pred_lemma_S, pred_pos_S
+        if "_" in predicate:
+            pred_lemma_S, pred_pos_S, *_ = predicate.split("_")
+            if pred_pos_S == 'q':
+                pred_lemma, pred_pos = pred_lemma_S, pred_pos_S
         else:
             pred_lemma, pred_pos = predicate, "S"
 

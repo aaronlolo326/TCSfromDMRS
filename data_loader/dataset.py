@@ -19,7 +19,7 @@ from src import util
     
 class DmrsDataset(Dataset):
     
-    def __init__(self, data_dir, transform = None, sample_only = False):
+    def __init__(self, data_dir, transformed_dir, transform = None, sample_only = False):
         """
         Args:
             csv_file (string): Path to the csv file with annotations.
@@ -36,21 +36,42 @@ class DmrsDataset(Dataset):
         # self.transform = transform
         
         ## Load all at once
+
         self.data_dir = data_dir
+        self.transformed_dir = transformed_dir
         self.transform = transform
         self.instance_list = []
-        for root, dirs, files in tqdm(os.walk(data_dir)):
-            for file in files:
-                if not util.is_data_json(file):
-                    continue
-                with open(os.path.join(self.data_dir, file)) as f:
-                    idx2instance = json.load(f)
-                    self.instance_list = [*self.instance_list, *list(idx2instance.values())]
-                    
+        self.transformed_list = []
+
+        if transform:
+            for root, dirs, files in tqdm(os.walk(self.data_dir)):
+                for file in files:
+                    if not util.is_data_json(file):
+                        continue
+                    with open(os.path.join(self.data_dir, file)) as f:
+                        idx2instance = json.load(f)
+                        self.instance_list = [*self.instance_list, *list(idx2instance.values())]
+                    if sample_only:
+                        break
                 if sample_only:
                     break
-            if sample_only:
-                break
+
+        ## elif transformed
+        else:
+            transformed_files = [file for file in os.listdir(self.transformed_dir) if all([
+                os.path.isfile(os.path.join(self.transformed_dir, file)),
+                file.startswith("transformed_"),
+                util.is_data_json(file)
+                ])
+            ]
+            for file in transformed_files:
+                with open(os.path.join(self.transformed_dir, file)) as f:
+                    transformed = json.load(f)
+                    if sample_only:
+                        transformed = transformed[:10]
+                    self.transformed_list = [*self.transformed_list, *transformed]
+                if sample_only:
+                    break
                     
         # with open(os.path.join(data_info_dir, "idx2file_path.json")) as f:
         #     idx2file_path = json.load(f)
@@ -59,7 +80,10 @@ class DmrsDataset(Dataset):
         
 
     def __len__(self):
-        return len(self.instance_list)
+        if self.transform:
+            return len(self.instance_list)
+        else:
+            return len(self.transformed_list)
 
     def __getitem__(self, idx):        
         
@@ -73,9 +97,11 @@ class DmrsDataset(Dataset):
 #             sample = self.transform(sample)
 
         ## Load all at once
-        sample = self.instance_list[idx]
         if self.transform:
+            sample = self.instance_list[idx]
             sample = self.transform(sample)
+        else:
+            sample = self.transformed_list[idx]
             
         return sample
     

@@ -19,6 +19,8 @@ from collections import defaultdict, Counter
 import json
 import os
 from copy import deepcopy
+from multiprocessing import Pool
+from functools import reduce
 
 try:
     __IPYTHON__
@@ -35,6 +37,10 @@ from pprint import pprint
 from src import util, dg_util
 from src.dg_util import DerivationBranchingError, DMRSNoLnkError, DisconnectedDMRSError, ExtraPredicateError
 
+import warnings
+warnings.filterwarnings("ignore")
+
+VERBOSE = False
 
 def _cpd_remove_name():
     pass
@@ -86,6 +92,8 @@ def normalize_pred(pred, unk2pos):
         norm_lemma = lemmatize_unk(pred_lemma, pred_pos)
         norm_pos = unk2pos[pred_pos]
         norm_pred = "_".join([norm_prefix, norm_lemma, norm_pos])
+    if norm_pred.endswith("_rel"):
+        norm_pred = norm_pred[:-4]
     return norm_pred
 
 
@@ -98,7 +106,7 @@ def propagate_anchors(deriv, curr_node):
         try:
             return (deriv.nodes[curr_node]['anchor_from'], deriv.nodes[curr_node]['anchor_to'])
         except:
-            util.draw_deriv(deriv)
+            dg_util.draw_deriv(deriv)
             input()
     # Non-terminal
     else:
@@ -133,7 +141,7 @@ def dmrs_rewrite(snt_id, snt, erg_digraphs, rewrite_type):
         elif rewrite_type == 'modal':
             return pred.endswith('modal')
         elif rewrite_type == 'compound':
-            return pred in ['compound_name_rel', 'compound_rel']
+            return pred in ['compound_name', 'compound']
             
     # deriv_dg = erg_digraphs.deriv_dg
     dmrs_dg = erg_digraphs.dmrs_dg
@@ -173,7 +181,7 @@ def dmrs_rewrite(snt_id, snt, erg_digraphs, rewrite_type):
                 #     erg_digraphs_re.draw_dmrs(name = '{}1'.format(rewrite_type))
 
             elif rewrite_type == 'compound':
-                # compound name connects arg1 named_rel
+                # compound name connects arg1 named
                 # ignore the connected predicates during training
                 arg1_node, arg2_node = None, None
                 for src, targ, lbl in dmrs_dg.out_edges(node, data='label'):
@@ -183,10 +191,10 @@ def dmrs_rewrite(snt_id, snt, erg_digraphs, rewrite_type):
                     arg1_node_prop = dmrs_dg.nodes[arg1_node]
                     arg2_node_prop = dmrs_dg.nodes[arg2_node]
 
-                    if arg1_node_prop['predicate'] == 'named_rel' or arg2_node_prop['predicate'] == 'named_rel':
+                    if arg1_node_prop['predicate'] == 'named' or arg2_node_prop['predicate'] == 'named':
                         merging_nodes = (node, arg1_node, arg2_node)
 
-                        if arg2_node_prop['predicate'] == 'named_rel':
+                        if arg2_node_prop['predicate'] == 'named':
                             retain_node = arg1_node
                         else:
                             retain_node = arg2_node
@@ -229,42 +237,50 @@ def dmrs_rewrite(snt_id, snt, erg_digraphs, rewrite_type):
     #     erg_digraphs_re.draw_dmrs(name = '{}2'.format(rewrite_type))
     #     input()
     return erg_digraphs_re
+
+
+def to_json(targ_export_dir, targ_data_dir, unk2pos, save_deriv = "no", sample_only = "no"):
     
-            
-def cleanse2():
-    data_json_dir = os.path.join(data_dir, "dmrs_deriv")
-    for root, dirs, files in os.walk(data_json_dir):
-        for file in tqdm(files):
-            with open(os.path.join(root, file), "r") as f:
-                dmrs_deriv_str = f.read()
-                id2instance = json.loads(dmrsList_str)
-                for snt_id in id2instance:
-                    dmrs_json = id2instance[snt_id]['dmrs']
-                    deriv_json = id2instance[snt_id]['deriv']
-                    
-                    for node in dmrs['nodes']:
-                        pred2cnt[node['predicate']] += 1
-                        # if (node['predicate'] == '_'):
-                        #     pprint (dmrs)
-                        #     pprint (node)
-                        print_pred(node['predicate'])
+    os.makedirs(targ_data_dir, exist_ok = True)
+    os.makedirs(targ_data_dir, exist_ok = True)
+    sys.stderr.write("Writing DMRS as json\nfrom: {}/\ninto: {}/\n".format(targ_export_dir, targ_data_dir))
+
+    workers_args = [(targ_export_dir, targ_data_dir, unk2pos, save_deriv, sample_only, worker_id) for worker_id in range(10)]
+    with Pool(10) as p:
+        data_info_workers = list(p.imap(to_json_worker, workers_args))
+    
+    id2file_path = defaultdict()
+    err2cnt = Counter()
+    pred2cnt = Counter()
+    for data_info_worker in data_info_workers:
+        id2file_path = id2file_path | data_info_worker["id2file_path"]
+        err2cnt = err2cnt + data_info_worker["err2cnt"]
+        pred2cnt = pred2cnt + data_info_worker["pred2cnt"]
 
 
-def to_json(targ_export_dir, targ_data_dir, unk2pos, save_deriv = False, sample_only = False):
+    targ_data_info_dir = os.path.join(targ_data_dir, "info")
+    os.makedirs(targ_data_info_dir, exist_ok = True)
+
+    with open(os.path.join(targ_data_info_dir, "err2cnt.txt"), "w") as f:
+        f.write(str(err2cnt))
+    with open(os.path.join(targ_data_info_dir, "pred2cnt.txt"), "w") as f:
+        for pred, cnt in pred2cnt.most_common():
+            f.write("{}\t{}\n".format(pred, str(cnt)))
+    with open(os.path.join(targ_data_info_dir, "id2file_path.json"), "w") as f:
+        json.dump(id2file_path, f)
+
+def to_json_worker(args):
     '''
     1. Normalize lnk of each DMRS graph
-        - 'predicate': 'pron_rel<0:2>' => 'predicate': 'pron_rel'; 'lnk': {'from': 0, 'to': 2}
+        - 'predicate': 'pron<0:2>' => 'predicate': 'pron'; 'lnk': {'from': 0, 'to': 2}
     2. Save the DMRS graph and HPSG derivation of every sentence as json
-        - exports/export#/uio/wikiwoods/1212/export/20910 => data/dmrs/#_20910.json
+        - exports/export#/uio/wikiwoods/1212/export/20910 => data/preprocessed/#_20910.json
         - create the directory from your code, using os.makedirs(<path>, exist_ok = True)
-    Note: Refer to Luyi.parse
     '''
-    sys.stderr.write("Writing DMRS as json\nfrom: {}/\ninto: {}/\n".format(targ_export_dir, targ_data_dir))
-    # code here
-    os.makedirs(targ_data_dir, exist_ok = True)
-    targ_data_dir = os.path.join(targ_data_dir, "preprocessed_dmrs")
-    os.makedirs(targ_data_dir, exist_ok = True)
-    regexp_1 = re.compile(r'(.+)<(\d+):(\d+)>')# patterm checking
+    targ_export_dir, targ_data_dir, unk2pos, save_deriv, sample_only, worker_id = args
+
+
+    lnk_regex = re.compile(r'(.+)<(\d+):(\d+)>')# patterm checking
     
     start_process = False
     pred2cnt = Counter()
@@ -272,32 +288,43 @@ def to_json(targ_export_dir, targ_data_dir, unk2pos, save_deriv = False, sample_
     start = False
     
     no_instance = 0
-    idx2file_path = defaultdict()
+    id2file_path = defaultdict()
     
-    for root, dirs, files in tqdm(os.walk(targ_export_dir)):
+    for root, dirs, files in os.walk(targ_export_dir):
         path = root.split(os.sep)
         if files:
-            for file in tqdm(files):
-                idx2instance = defaultdict(defaultdict)
+            no_files = len(files)
+            for file_idx, file in enumerate(files):
+                id2instance = defaultdict(defaultdict)
                 export_no = root.split("/")[1][-1]
+                if export_no != str(worker_id):
+                    continue
                 # if file == '09490.gz':
                 #     start = True
                 # if not start:
                 #     continue
-                sys.stderr.write("processing {}".format(os.path.join(root, file)))
+                if VERBOSE:
+                    sys.stderr.write("processing {}".format(os.path.join(root, file)))
+
+                if file_idx%(no_files/20) == 0:
+                    print ("worker {}: {}% done".format(worker_id, file_idx/no_files * 100))
                 
                 targ_filename = "{}_{}.json".format(export_no, file[:-3])
+
+
                 with gzip.open(os.path.join(root, file), "rb") as f:
                     text = f.read().decode('utf-8')
                     structs = text.split("\4")
                     
                     # for each sentence, we turn mrs to dmrs, and align the derivation and syntax tree to the dmrs
-                    for idx, struct in enumerate(tqdm(structs)):
+                    for idx, struct in enumerate(structs):
                         try:
                             id_snt, anc, yyinput, drv, cat, mrs, eds, dmrs_noScope, _ = struct.split("\n\n")
                         except:
-                            sys.stderr.write("wrongly formatted instance:")
-                            print (struct)
+                            if VERBOSE:
+                                sys.stderr.write("wrongly formatted instance:")
+                                if VERBOSE:
+                                    print (struct)
                             continue
                         id_snt = id_snt.strip()
                         id_snt = id_snt.split("\n")[0]
@@ -314,8 +341,9 @@ def to_json(targ_export_dir, targ_data_dir, unk2pos, save_deriv = False, sample_
                             dmrs_json = dmrsjson.to_dict(dmrs)
                         except MRSSyntaxError as e:
                             err2cnt['mrs-X->dmrs_json'] += 1
-                            print (snt)
-                            print (mrs)
+                            if VERBOSE:
+                                print (snt)
+                                print (mrs)
                             # print (simplemrs.decode(mrs))
                             
                         if save_deriv:
@@ -342,7 +370,7 @@ def to_json(targ_export_dir, targ_data_dir, unk2pos, save_deriv = False, sample_
                             
                         # normalize lnk info
                         for node in dmrs_json['nodes']:
-                            re_match = regexp_1.match(node['predicate'])
+                            re_match = lnk_regex.match(node['predicate'])
                             
                             if re_match:
                                 pred_lnk_split = node['predicate'].split("<")
@@ -352,6 +380,7 @@ def to_json(targ_export_dir, targ_data_dir, unk2pos, save_deriv = False, sample_
                                 lnk_split = lnk_split[1].split(">")
                                 anc_to = int(lnk_split[0])
                                 node['lnk'] = {'from':anc_from,'to':anc_to}
+                                
                                 
                             norm_pred = normalize_pred(node['predicate'], unk2pos)
                             # node['predicate'] = pred
@@ -383,7 +412,8 @@ def to_json(targ_export_dir, targ_data_dir, unk2pos, save_deriv = False, sample_
                             try:
                                 erg_digraphs.init_erg_deriv(deriv, draw = draw)
                             except DerivationBranchingError as e:
-                                sys.stderr.write("More than two daughters for a node in the derivaiton; discarding the instance\n")
+                                if VERBOSE:
+                                    sys.stderr.write("More than two daughters for a node in the derivaiton; discarding the instance\n")
                                 err2cnt['deriv_>2dgtrs'] += 1
                                 continue
                         
@@ -401,64 +431,64 @@ def to_json(targ_export_dir, targ_data_dir, unk2pos, save_deriv = False, sample_
                         
                         # cleanse dmrs
                         erg_digraphs_re = erg_digraphs
-                        erg_digraphs_re = dmrs_rewrite(snt_id, snt, erg_digraphs_re, rewrite_type = 'modal')
-                        erg_digraphs_re = dmrs_rewrite(snt_id, snt, erg_digraphs_re, rewrite_type = 'nominalization')
-                        erg_digraphs_re = dmrs_rewrite(snt_id, snt, erg_digraphs_re, rewrite_type = 'eventuality')
-                        erg_digraphs_re = dmrs_rewrite(snt_id, snt, erg_digraphs_re, rewrite_type = 'compound')
+                        # erg_digraphs_re = dmrs_rewrite(snt_id, snt, erg_digraphs_re, rewrite_type = 'modal')
+                        # erg_digraphs_re = dmrs_rewrite(snt_id, snt, erg_digraphs_re, rewrite_type = 'nominalization')
+                        # erg_digraphs_re = dmrs_rewrite(snt_id, snt, erg_digraphs_re, rewrite_type = 'eventuality')
+                        # erg_digraphs_re = dmrs_rewrite(snt_id, snt, erg_digraphs_re, rewrite_type = 'compound')
                         
-                        idx2instance[no_instance]['snt'] = erg_digraphs_re.snt
-                        idx2instance[no_instance]['id'] = snt_id
-                        idx2instance[no_instance]['dmrs'] = nx.readwrite.json_graph.node_link_data(erg_digraphs_re.dmrs_dg)
+                        id2instance[snt_id]['snt'] = erg_digraphs_re.snt
+                        id2instance[snt_id]['id'] = snt_id
+                        id2instance[snt_id]['dmrs'] = nx.readwrite.json_graph.node_link_data(erg_digraphs_re.dmrs_dg)
                         if save_deriv:
-                            idx2instance[no_instance]['deriv'] = nx.readwrite.json_graph.node_link_data(erg_digraphs_re.deriv_dg)
+                            id2instance[snt_id]['deriv'] = nx.readwrite.json_graph.node_link_data(erg_digraphs_re.deriv_dg)
                             
-                        idx2file_path[no_instance] = targ_filename
+                        id2file_path[snt_id] = targ_filename
                         no_instance += 1
-                        
-                
-                # for dmrs_json in dmrs_list:
-                #     for node in dmrs_json['nodes']:
-                #         pred2cnt[node['predicate']] += 1
                 
                 with open(os.path.join(targ_data_dir, targ_filename), "w") as f:
-                    json.dump(idx2instance, f)
-                sys.stderr.write(str(err2cnt)+"\n")
+                    json.dump(id2instance, f)
+                if VERBOSE:
+                    sys.stderr.write(str(err2cnt)+"\n")
                 # input()
-                if sample_only: break
-            if sample_only: break
-            
-    targ_data_info_dir = os.path.join(targ_data_dir, "info")
-    os.makedirs(targ_data_info_dir, exist_ok = True)
-    with open(os.path.join(targ_data_info_dir, "stats.txt"), "w") as f:
-        f.write(str(err2cnt))
-    with open(os.path.join(targ_data_info_dir, "idx2file_path.json"), "w") as f:
-        json.dump(idx2file_path, f)
+                if sample_only and id2instance: break
+            if sample_only and id2instance: break
+
+    return {"err2cnt": err2cnt, "id2file_path": id2file_path, "pred2cnt": pred2cnt}
                         
         
-def main(targ_export_dir, targ_data_dir, erg_dir, save_deriv, sample_only):
+def main(targ_export_dir, targ_data_dir, erg_dir, save_deriv, sample_only, verbose):
     
-    unk2pos_path = os.path.join(erg_dir, "unk2pos.json")
-    with open(unk2pos_path) as f:
-        unk2pos = json.load(f)
-    # extract(ww1212_dir, targ_export_dir)
-    to_json(targ_export_dir, targ_data_dir, unk2pos, save_deriv, sample_only)
-    # to_json(targ_export_dir, targ_data_dir)
+    save_deriv, sample_only, verbose = [False if arg == 'no' else True if arg == 'yes' else 'err' for arg in [save_deriv, sample_only, verbose]]
+
+    if 'err' in [save_deriv, sample_only, verbose]:
+        sys.stderr.write("invalid argument\n")
+
+    else:
+        VERBOSE = verbose
+        unk2pos_path = os.path.join(erg_dir, "unk2pos.json")
+        with open(unk2pos_path) as f:
+            unk2pos = json.load(f)
+        # extract(ww1212_dir, targ_export_dir)
+        to_json(targ_export_dir, targ_data_dir, unk2pos, save_deriv, sample_only)
+        # to_json(targ_export_dir, targ_data_dir)
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('targ_export_dir', default=None, help='path to target export directory')
-    parser.add_argument('targ_data_dir', default=None, help='path to target data directory')
-    parser.add_argument('erg_dir', default='erg', help='path to directory of English Resource Grammar knowledge')
+    parser.add_argument('--targ_export_dir', default=None, help='path to target export directory')
+    parser.add_argument('--targ_data_dir', default=None, help='path to target data directory')
+    parser.add_argument('--erg_dir', default='erg', help='path to directory of English Resource Grammar knowledge')
     # parser.add_argument('log_dir', default='log', help='path to directory of English Resource Grammar knowledge')
-    parser.add_argument('save_deriv', default=False, help='save also derivation trees')
-    parser.add_argument('sample_only', default=False, help='preprocess on a small subset of data first?')
+    parser.add_argument('--save_deriv', default="no", help='save also derivation trees')
+    parser.add_argument('--sample_only', default="no", help='preprocess on a small subset of data first?')
+    parser.add_argument('--verbose', default="no", help='enable verbose mode')
     args = parser.parse_args()
     main(
         args.targ_export_dir,
         args.targ_data_dir,
         args.erg_dir,
         args.save_deriv,
-        args.sample_only
+        args.sample_only,
+        args.verbose
     )
     
 '''

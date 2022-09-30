@@ -1,0 +1,845 @@
+{
+    "lexical_pos": [
+        "n",
+        "a",
+        "v"
+    ],
+    "abs_pred_func": {
+        "sem": [
+            "poss",
+            "loc_nonsp",
+            "of_p",
+            "with_p"
+        ],
+        "cpd": [
+            "compound",
+            "compound_name"
+        ],
+        "neg": [
+            "neg",
+            "not_x_deg"
+        ],
+        "gen": [
+            "pron",
+            "generic_entity",
+            "generic_entity",
+            "pron",
+            "thing",
+            "person",
+            "place_n",
+            "time_n",
+            "reason"
+        ],
+        "carg": [
+            "season",
+            "holiday"
+        ]
+    },
+    "neg_quantifier": [
+        "_no_q",
+        "_neither_q",
+        "_no+more_q"
+    ],
+    "transparent_preds": [
+        "nominalization",
+        "eventuality"
+    ],
+    "logical_preds": {
+        "X": {
+            "_and_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aANDb"
+            ],
+            "_plus_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aANDb"
+            ],
+            "_as+well+as_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aANDb"
+            ],
+            "_and+then_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aANDb"
+            ],
+            "_then_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aANDb"
+            ],
+            "_and+also_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aANDb"
+            ],
+            "_yet_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aANDb"
+            ],
+            "_but+also_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aANDb"
+            ],
+            "_but_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aANDb"
+            ],
+            "implicit_conj": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aANDb"
+            ],
+            "_or_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aORb"
+            ],
+            "_or+else_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-!a=>b"
+            ],
+            "_else_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-!a=>b"
+            ],
+            "_rather+than_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aAND!b"
+            ],
+            "_and+not_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aAND!b"
+            ],
+            "_but+not_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aAND!b"
+            ],
+            "_nor_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aAND!b"
+            ],
+            "_not_c": [
+                [
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "X-aAND!b"
+            ]
+        },
+        "C": {
+            "_and_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aANDb"
+            ],
+            "_plus_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aANDb"
+            ],
+            "_as+well+as_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aANDb"
+            ],
+            "_and+then_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aANDb"
+            ],
+            "_then_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aANDb"
+            ],
+            "_and+also_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aANDb"
+            ],
+            "_yet_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aANDb"
+            ],
+            "_but+also_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aANDb"
+            ],
+            "_but_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aANDb"
+            ],
+            "implicit_conj": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aANDb"
+            ],
+            "_or_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aORb"
+            ],
+            "_or+else_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-!a=>b"
+            ],
+            "_else_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-!a=>b"
+            ],
+            "_rather+than_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aAND!b"
+            ],
+            "_and+not_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aAND!b"
+            ],
+            "_but+not_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aAND!b"
+            ],
+            "_nor_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aAND!b"
+            ],
+            "_not_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL",
+                    "L-INDEX",
+                    "R-INDEX"
+                ],
+                "C-aAND!b"
+            ]
+        },
+        "H": {
+            "_and_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aANDb"
+            ],
+            "_plus_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aANDb"
+            ],
+            "_as+well+as_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aANDb"
+            ],
+            "_and+then_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aANDb"
+            ],
+            "_then_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aANDb"
+            ],
+            "_and+also_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aANDb"
+            ],
+            "_yet_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aANDb"
+            ],
+            "_but+also_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aANDb"
+            ],
+            "_but_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aANDb"
+            ],
+            "implicit_conj": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aANDb"
+            ],
+            "_or_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aORb"
+            ],
+            "_or+else_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-!a=>b"
+            ],
+            "_else_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-!a=>b"
+            ],
+            "_rather+than_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aAND!b"
+            ],
+            "_and+not_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aAND!b"
+            ],
+            "_but+not_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aAND!b"
+            ],
+            "_nor_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aAND!b"
+            ],
+            "_not_c": [
+                [
+                    "L-HNDL",
+                    "R-HNDL"
+                ],
+                "H-aAND!b"
+            ]
+        },
+        "S": {
+            "_when_x_subord": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_while_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_because_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_after_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_as_x_subord": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_since_x_subord": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_for_x_cause": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_so+that_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_in+that_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_whereas_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_as+if_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_so+as+to_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_albeit_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_now+that_x": [
+                [
+                    "ARG2/H",
+                    "ARG1/H"
+                ],
+                "S-aANDb"
+            ],
+            "_as+far+as_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_so+long+as_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_whenever_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_much+as_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_inasmuchas+as_x_subord": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_so+far+as_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "subord": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aANDb"
+            ],
+            "_as+long+as_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-a=>b"
+            ],
+            "_provided_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-a=>b"
+            ],
+            "_if+only_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-a=>b"
+            ],
+            "_if+and+when_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-a=>b"
+            ],
+            "_if_x_then": [
+                [
+                    "ARG2/H",
+                    "ARG1/H"
+                ],
+                "S-a=>b"
+            ],
+            "_once_x_subord": [
+                [
+                    "ARG2/H",
+                    "ARG1/H"
+                ],
+                "S-a=>b"
+            ],
+            "_in+case_x": [
+                [
+                    "ARG2/H",
+                    "ARG1/H"
+                ],
+                "S-a=>b"
+            ],
+            "_if+and+only+if_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-a<=>b"
+            ],
+            "_nor_x_subord": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aAND!b"
+            ],
+            "_not+that_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aAND!b"
+            ],
+            "_except+to_x": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aAND!b"
+            ],
+            "_but_p_except": [
+                [
+                    "ARG1/H",
+                    "ARG2/H"
+                ],
+                "S-aAND!b"
+            ],
+            "_far+from_a": [
+                [
+                    "ARG1/H"
+                ],
+                "S-!a"
+            ],
+            "_not+quite_a": [
+                [
+                    "ARG1/H"
+                ],
+                "S-!a"
+            ],
+            "_never_a_1": [
+                [
+                    "ARG1/H"
+                ],
+                "S-!a"
+            ],
+            "_no_a_1": [
+                [
+                    "ARG1/H"
+                ],
+                "S-!a"
+            ],
+            "neg": [
+                [
+                    "ARG1/H"
+                ],
+                "S-!a"
+            ],
+            "nominalization": [
+                [
+                    "ARG1/HEQ"
+                ],
+                "S-a"
+            ],
+            "eventuality": [
+                [
+                    "ARG1/HEQ"
+                ],
+                "S-a"
+            ],
+            "_can_v_modal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_would_v_modal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_may_v_modal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_could_v_modal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_must_v_modal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_should_v_modal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_have_v_qmodal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_might_v_modal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_going+to_v_qmodal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_used+to_v_qmodal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_need_v_qmodal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_ought_v_qmodal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_had+better_v_qmodal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_dare_v_qmodal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_gotta_v_modal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ],
+            "_had+best_v_qmodal": [
+                [
+                    "ARG1/H"
+                ],
+                "S-a"
+            ]
+        }
+    },
+    "ignore": [
+        "_threedot-pnct_a_1"
+    ],
+    "ignore_scopal_adv": true,
+    "ignore_modal_verb": true
+}

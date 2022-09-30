@@ -34,12 +34,12 @@ def main(ww1212_dir, targ_export_dir):
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('ww1212_dir', default=None, help='path to wikiwoods 1212 directory')
-    parser.add_argument('targ_export_dir', default=None, help='path to target export directory')
+    parser.add_argument('--ww1212_dir', default=None, help='path to wikiwoods 1212 directory')
+    parser.add_argument('--targ_export_dir', default=None, help='path to target export directory')
     args = parser.parse_args()
     main(
         args.ww1212_dir,
-        args.targ_data_dir
+        args.targ_export_dir
     )
     
 '''
