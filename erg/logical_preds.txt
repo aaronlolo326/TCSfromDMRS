@@ -117,6 +117,7 @@ S-a	_had+best_v_qmodal;ARG1/H
 *S-!a	_not+quite_x;ARG1/EQ
 *S-!a	_not_x_deg;ARG1/NEQ
 *S-!a	_not+even_x_deg;MOD/NEQ
+*S-!a	_not+just_x_deg;MOD/NEQ
 *others	_etc_c
 *others	_and_c_mod
 *others	_to_c_from

@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from parse_config import ConfigParser
 
-from transform.ftcs_transform import TruthConditions
+from transform.tcs_transform import TruthConditions, schema
 
 try:
     __IPYTHON__
@@ -24,6 +24,7 @@ from functools import reduce
 from pprint import pprint
 
 from src import util, dg_util
+from utils import get_transformed_info, draw_logic_expr
 
 import networkx as nx
 from networkx.readwrite.json_graph import node_link_data
@@ -31,14 +32,21 @@ from networkx.drawing.nx_agraph import to_agraph
 
 # import networkx as nx
 
-# fix random seeds for reproducibility
-SEED = 123
+NUM_WORKERS = 12
+
+trsfm_key2abbrev = {
+    "node2pred": "i",
+    "pred_func_nodes": "n",
+    "content_preds": "l",
+    "logic_expr": "e",
+    "pred_func_used": "f"
+}
 
 # def _prepare_train_worker_max(args):
 
 #     data_dir, transform_config, worker_id, sample_only = args
 
-#     num_lex_pred2cnt = Counter()
+#     num_content_pred2cnt = Counter()
 #     for root, dirs, files in os.walk(data_dir):
 #         for file in tqdm(files):
 #             if not util.is_data_json(file):
@@ -53,9 +61,9 @@ SEED = 123
 #                     transformed = trsfm(instance)
 #                     # count pred_func
                     
-#                     # print (transformed['encoders']['lexical_preds'])
+#                     # print (transformed['encoders']['content_preds'])
 #                     # _count_pred_func(sub_pred_func2cnt, transformed, worker_id)
-#                     num_lex_pred2cnt[len(transformed['encoders']['lexical_preds'])] += 1
+#                     num_content_pred2cnt[len(transformed['encoders']['content_preds'])] += 1
 #                     if sample_only:
 #                         break
 #                 if sample_only:
@@ -65,7 +73,7 @@ SEED = 123
 #             # print ("processed {}".format(file))
 #             # pprint (sub_pred_func2cnt)
 
-#     return num_lex_pred2cnt
+#     return num_content_pred2cnt
 
 
 # def prepare_train_max(data_dir, transform_config, sample_only):
@@ -75,87 +83,32 @@ SEED = 123
 #     with Pool(10) as p:
 #         prepared = list(tqdm(p.imap(_prepare_train_worker_max, workers_args)))
     
-#     num_lex_pred2cnt = reduce(lambda x, y: x + y, prepared)
+#     num_content_pred2cnt = reduce(lambda x, y: x + y, prepared)
     
-#     return num_lex_pred2cnt
-    
-def draw_logic_expr(logic_expr, timestamp = False, name = "err", save_path = None):
-    
-    def _build_tree(logic_expr_tree, sub_logic_expr, curr_node, par_node, edge_lbl):
-        if isinstance(sub_logic_expr, str):
-            logic_expr_tree.add_node(curr_node, label = sub_logic_expr)
-        elif isinstance(sub_logic_expr, dict):
-            logic_expr_tree.add_node(curr_node, label = "{} {}".format(sub_logic_expr['pred_func_name'], str(sub_logic_expr['args'])))
-        elif sub_logic_expr:
-            root, *dgtrs = sub_logic_expr
-            logic_expr_tree.add_node(curr_node, label = root)
-            for dgtr_idx, dgtr in enumerate(dgtrs):
-                _build_tree(logic_expr_tree, dgtr, curr_node*2 + dgtr_idx, curr_node, dgtr_idx)
-        if par_node:
-            logic_expr_tree.add_edge(par_node, curr_node, label = edge_lbl)
+#     return num_content_pred2cnt
 
-    
-    logic_expr_tree = nx.DiGraph()
-    # pprint (logic_expr)
-    _build_tree(logic_expr_tree, logic_expr, 1, None, None)
-            
-    time_str = "_" + time.asctime( time.localtime(time.time()) ).replace(" ", "-") if timestamp else ""
-    if not save_path:
-        save_path = "./figures/logic_expr_{}".format(name) + time_str + ".png"
-    ag = to_agraph(logic_expr_tree)
-    ag.layout('dot')
-    ag.draw(save_path)
-    print ("logic expression tree drawn:", save_path)
 
 
 def _prepare_train_worker(args):
 
     def _count_pred_func(pred_func2cnt, pred2cnt, logic_expr, worker_id):
         if isinstance(logic_expr, dict):
-            pred_func2cnt[logic_expr['pred_func_name']] += 1
-            pred2cnt[logic_expr['pred_func_name'].rsplit("@", 1)[0]] += 1
+            pred_func2cnt[logic_expr['pf']] += 1
+            if isinstance(logic_expr['pf'], str):
+                pred2cnt[logic_expr['pf'].rsplit("@", 1)[0]] += 1
+            else:
+                print ("not string instance?")
+                # transformed
+                pass
         elif logic_expr:
             root, *dgtrs = logic_expr
             for dgtr in dgtrs:
                 _count_pred_func(pred_func2cnt, pred2cnt, dgtr, worker_id)
 
-    def _count_lex_pred(lex_pred2cnt, lexical_preds, worker_id):
-        lex_pred2cnt.update(lexical_preds)
+    def _count_content_pred(content_pred2cnt, content_preds, worker_id):
+        content_pred2cnt.update(content_preds)
 
     def validate_json(f):
-        schema = {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "snt_id": {
-                        "type": "string"
-                    },
-                    "decoders": {
-                        "type": "object",
-                        "properties": {
-                            "logic_expr": {
-                                "type": "array",
-                            }
-                        },
-                        "required": ["logic_expr"]
-                    },
-                    "encoders": {
-                        "type": "object",
-                        "properties": {
-                            "pred_func_nodes": {
-                                "type": "array"
-                            },
-                            "lexical_preds": {
-                                "type": "array"
-                            }
-                        },
-                        "required": ["pred_func_nodes", "lexical_preds"]
-                    }
-                },
-                "required": ["decoders", "encoders", "snt_id"]
-            }
-        }
         try:
             # Read in the JSON document
             data = json.load(f)
@@ -171,32 +124,34 @@ def _prepare_train_worker(args):
 
     # id2transformed = defaultdict(defaultdict)
 
-    id2transformed_file_path = None
+    transformed_file_path = None
     written = False
 
-    data_dir, fig_dir, transformed_dir, transform_config, worker_id, draw_tree, sample_only, q_snt_id, data_loader_args = args
+    data_dir, fig_dir, transformed_dir, transform_config, worker_id, draw_tree, sample_only, q_snt_id, to_ix, data_loader_args = args
     if transformed_dir:
-        id2transformed_file_path = os.path.join(transformed_dir, "transformed_{}.json".format(worker_id))
+        transformed_file_path = os.path.join(transformed_dir, "_transformed_{}.json".format(worker_id))
 
-    min_pred_func_freq, min_lex_pred_freq, lex_pred2cnt, pred_func2cnt, filter_min_freq = None, None, None, None, False
+    min_pred_func_freq, min_content_pred_freq, filter_min_freq, content_pred2cnt, pred_func2cnt, pred2ix, pred_func2ix = None, None, False, None, None, None, None
     if data_loader_args:
-        min_pred_func_freq, min_lex_pred_freq, lex_pred2cnt, pred_func2cnt = data_loader_args
-        filter_min_freq = True
+        min_pred_func_freq, min_content_pred_freq, filter_min_freq, content_pred2cnt, pred_func2cnt, pred2ix, pred_func2ix = data_loader_args
 
-    prepared = {"pred_func2cnt": Counter(), "pred2cnt": Counter(), "lex_pred2cnt": Counter(), "err2cnt": Counter()}
+    prepared = {"pred_func2cnt": Counter(), "pred2cnt": Counter(), "content_pred2cnt": Counter(), "err2cnt": Counter()}
         
     found_q = False
     worker_files = [file for file in os.listdir(data_dir) if all([
         os.path.isfile(os.path.join(data_dir, file)),
-        file.startswith("{}_".format(str(worker_id))),
+        # file.startswith("{}_".format(str(worker_id))),
+        sum(map(lambda x: int(x),filter(lambda x: str.isnumeric(x), file))) % NUM_WORKERS == worker_id,
         util.is_data_json(file)
         ])
     ]
     no_files = len(worker_files)
-        
+    
+    transformed_keys = transform_config["transformed_keys"]
+
     for file_idx, file in enumerate(worker_files):
-        if not sample_only: #and file_idx%(no_files/1000) == 0:
-            print ("worker {}: {}% done".format(worker_id, file_idx/no_files * 100))
+        if not sample_only and int((no_files/100)) != 0 and file_idx%int((no_files/100)) == 0:
+            print ("worker {}: {:.2f}% done".format(worker_id, file_idx/no_files * 100))
         # if not file.startswith("{}_".format(str(worker_id))):
         #     continue
         with open(os.path.join(data_dir, file)) as f:
@@ -207,9 +162,19 @@ def _prepare_train_worker(args):
                     continue
                 found_q = True
                 trsfm = TruthConditions(
-                    transform_config, min_pred_func_freq, min_lex_pred_freq, lex_pred2cnt, pred_func2cnt, filter_min_freq
+                    transform_config, to_ix, min_pred_func_freq, min_content_pred_freq, content_pred2cnt, pred_func2cnt, filter_min_freq,
+                    pred2ix, pred_func2ix
                 )
                 transformed = trsfm(instance)
+                # transformed = {
+                #     "discarded": self.discarded,
+                #     "discarded_reason": self.discarded_reason,
+                #     "node2pred": self.node2pred,
+                #     "pred_func_nodes": list(self.pred_func_nodes),
+                #     "content_preds": list(self.content_preds),
+                #     "logic_expr": self.logic_expr,
+                #     "pred_func_used": list(self.pred_func_used)
+                # }
                 discarded = transformed["discarded"]
                 if discarded:
                     prepared["err2cnt"][transformed["discarded_reason"]] += 1
@@ -217,18 +182,15 @@ def _prepare_train_worker(args):
                     # print (snt_id, snt_id, transformed["discarded_reason"])
                 else:
                     # count pred_func
-                    logic_expr = transformed["decoders"]["logic_expr"]
-                    _count_pred_func(prepared["pred_func2cnt"], prepared["pred2cnt"], logic_expr, worker_id)
-                    lexical_preds = transformed["encoders"]["lexical_preds"]
-                    _count_lex_pred(prepared["lex_pred2cnt"], lexical_preds, worker_id)
+                    if not transformed_file_path:
+                        _count_pred_func(prepared["pred_func2cnt"], prepared["pred2cnt"], transformed["logic_expr"], worker_id)
+                        _count_content_pred(prepared["content_pred2cnt"], transformed["content_preds"], worker_id)
                     # id2transformed[snt_id]['decoders'] = transformed["decoders"]
                     # id2transformed[snt_id]['encoders'] = transformed["encoders"]
-                    if not q_snt_id and id2transformed_file_path:
-                        transformed_json = defaultdict()
-                        transformed_json["snt_id"] = snt_id
-                        transformed_json["decoders"] = transformed["decoders"]
-                        transformed_json["encoders"] = transformed["encoders"]
-                        transformed_json["node2pred"] = transformed["node2pred"]
+                    if not q_snt_id and transformed_file_path:
+                        # transformed_json = {trsfm_key2abbrev[key]: transformed[key] for key in transformed_keys}
+                        # transformed_json["snt_id"] = snt_id
+                        transformed_json = [transformed[key] for key in transformed_keys]
                         if not written:
                             delimiter = "["
                             write_mode = 'w'
@@ -236,14 +198,14 @@ def _prepare_train_worker(args):
                         else:
                             delimiter = ", "
                             write_mode = 'a'
-                        with open(id2transformed_file_path, write_mode) as f:
+                        with open(transformed_file_path, write_mode) as f:
                             f.write(delimiter)
                             f.write(json.dumps(transformed_json))
                 if draw_tree:
                     snt = instance['snt']
                     logic_expr_save_path = os.path.join(fig_dir, "logic_expr_{}.png".format(snt_id))
                     print (snt)
-                    draw_logic_expr(logic_expr, save_path = logic_expr_save_path)
+                    draw_logic_expr(transformed["logic_expr"], save_path = logic_expr_save_path)
                     erg_digraphs = dg_util.Erg_DiGraphs()
                     dmrs_nxDG = nx.node_link_graph(instance['dmrs'])
                     erg_digraphs.init_dmrs_from_nxDG(dmrs_nxDG)
@@ -251,8 +213,7 @@ def _prepare_train_worker(args):
 
                     dmrs_save_path = os.path.join(fig_dir, "dmrs_{}.png".format(snt_id))#+ time.asctime( time.localtime(time.time()) ).replace(" ", "-") +".png"
                     erg_digraphs.draw_dmrs(save_path = dmrs_save_path)
-
-                if q_snt_id and found_q or sample_only and idx_loop >= 1000:
+                if q_snt_id and found_q or sample_only and idx_loop >= 2000:
                     break
             if q_snt_id and found_q or sample_only:
                 break
@@ -260,11 +221,11 @@ def _prepare_train_worker(args):
             break
         # print ("processed {}".format(file))
         # pprint (sub_pred_func2cnt)
-    if not q_snt_id and id2transformed_file_path and written:
-        with open(id2transformed_file_path, "a") as f:
+    if not q_snt_id and transformed_file_path and written:
+        with open(transformed_file_path, "a") as f:
             f.write("]")
-        with open(id2transformed_file_path, "r") as f:
-            valid_json = validate_json(f)
+        # with open(transformed_file_path, "r") as f:
+        #     valid_json = validate_json(f)
             # if not valid_json:
             #     print ("Invalid json.")
             # else:
@@ -272,11 +233,11 @@ def _prepare_train_worker(args):
 
     return {"prepared": prepared}
 
-def prepare_train(data_dir, fig_dir, transformed_dir, transform_config, draw_tree, sample_only, q_snt_id, data_loader_args = None):
+def prepare_train(data_dir, fig_dir, transformed_dir, transform_config, draw_tree, sample_only, q_snt_id, to_ix, data_loader_args = None):
 
-    workers_args = [(data_dir, fig_dir, transformed_dir, transform_config, worker_id, draw_tree, sample_only, q_snt_id, data_loader_args) for worker_id in range(10)]
+    workers_args = [(data_dir, fig_dir, transformed_dir, transform_config, worker_id, draw_tree, sample_only, q_snt_id, to_ix, data_loader_args) for worker_id in range(NUM_WORKERS)]
     prepared = []
-    with Pool(10) as p:
+    with Pool(NUM_WORKERS) as p:
         prepared_workers = list(p.imap(_prepare_train_worker, workers_args))
     
     print ("Pool ended. Reducing ...")
@@ -290,9 +251,75 @@ def prepare_train(data_dir, fig_dir, transformed_dir, transform_config, draw_tre
 
     return prepared
 
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+def write_balanced(args):
+    transformed_dir, worker_id, bal_transformed = args
+    print (worker_id, len(bal_transformed))
+    print ("Saving {}".format(worker_id))
+    with open(os.path.join(transformed_dir, "transformed_{}.json".format(worker_id)), "w") as f:
+        json.dump(bal_transformed, f)
+    return True
+
+def load_transformed(transformed_path):
+    print ("loading {}".format(transformed_path))
+    with open(transformed_path) as f:
+        transformed = json.load(f)
+    print ("Finished loading {}".format(transformed_path))
+    return transformed
+
+def balance_splits(transformed_dir):
+    num_instance = 0
+    transformed_list = []
+    transformed_paths =  [os.path.join(transformed_dir, "_transformed_{}.json".format(i)) for i in range(NUM_WORKERS)]
+
+    workers_args = [transformed_paths[worker_id] for worker_id in range(NUM_WORKERS)]
+    with Pool(NUM_WORKERS) as p:
+        for idx, transformed in enumerate(p.imap(load_transformed, workers_args)):
+            print ("Extending {}".format(idx))
+            transformed_list.extend(transformed)
+            del transformed
+
+    num_instance = len(transformed_list)
+
+    num_instance_per_file = int(num_instance/NUM_WORKERS)
+    print ("total num_instance", num_instance)
+    print ("num_instance_per_file", num_instance_per_file)
+    for idx, chunk in enumerate(chunks(transformed_list, num_instance_per_file)):
+        # transformed_dir, worker_id, bal_transformed = args
+        print (idx, len(chunk))
+        if len(chunk) == num_instance:
+            print ("Saving {}".format(idx))
+            with open(os.path.join(transformed_dir, "transformed_{}.json".format(idx)), "w") as f:
+                json.dump(chunk, f)
+        del chunk
+
+    # workers_args = [(transformed_dir, worker_id, bal_transformed_list[worker_id]) for worker_id in range(NUM_WORKERS)]
+    # with Pool(NUM_WORKERS) as p:
+    #     return_workers = list(p.imap(write_balanced, workers_args))
+    
+    # if all(return_workers):
+    #     print ("All saved. Pool ended.")
+    # prepared = reduce(lambda x, y: {key: x[0][key] + y[0][key] for key in x}, prepared_workers)
 
 
-def main(config, draw_tree = "no", sample_only = "no", q_snt_id = None):
+def main(config, draw_tree = "no", q_snt_id = None):
+
+
+    sample_only = config["sample_only"]
+    data_loader_args = config['data_loader']['args']
+    data_dir = data_loader_args['data_dir']
+    min_pred_func_freq = data_loader_args["min_pred_func_freq"]
+    min_content_pred_freq = data_loader_args["min_content_pred_freq"]
+    filter_min_freq = data_loader_args["filter_min_freq"]
+    transform_config_file_path = data_loader_args['transform_config_file_path']
+
+    transformed_dir  = data_loader_args["transformed_dir"]
+    transformed_info_dir = os.path.join(transformed_dir, "info")
+    os.makedirs(transformed_info_dir, exist_ok = True)
 
     sample_str = None
     if sample_only == "no":
@@ -305,12 +332,6 @@ def main(config, draw_tree = "no", sample_only = "no", q_snt_id = None):
     if draw_tree == "no": draw_tree = False
     elif draw_tree == "yes": draw_tree = True
 
-    data_loader_args = config['data_loader']['args']
-    data_dir = data_loader_args['data_dir']
-    min_pred_func_freq = data_loader_args["min_pred_func_freq"]
-    min_lex_pred_freq = data_loader_args["min_lex_pred_freq"]
-    transform_config_file_path = data_loader_args['transform_config_file_path']
-
     with open(transform_config_file_path) as f:
         transform_config = json.load(f)
 
@@ -319,75 +340,80 @@ def main(config, draw_tree = "no", sample_only = "no", q_snt_id = None):
         fig_dir = os.path.join(data_dir, "figures")
         os.makedirs(fig_dir, exist_ok = True)
 
-    # data_info_dir = os.path.join(data_dir, "info")
-    # if snt_id:
-    #     with open(os.path.join(data_info_dir, "idx2file_path.json")) as f:
-    #         idx2file_path = json.load(f)
-    #         file_path = idx2file_path[snt_id]
 
-    # num_lex_pred2cnt = prepare_train_max(data_dir, transform_config, sample_only)
-    # print (num_lex_pred2cnt)
-    transformed_dir = None
-    
-    prepared = prepare_train(data_dir, fig_dir, transformed_dir, transform_config, draw_tree, sample_only, q_snt_id)
+
+    to_ix = False
+    prepared = prepare_train(data_dir, fig_dir, None, transform_config, draw_tree, sample_only, q_snt_id, to_ix)
 
     run_dir = config.run_dir
     log_dir = config.log_dir
 
-    pred_func2cnt_file_path = os.path.join(run_dir, "pred_func2cnt.txt")
-    with open(pred_func2cnt_file_path, "w") as f:
-        for pred_func, cnt in prepared["pred_func2cnt"].most_common():
-            if cnt >= min_pred_func_freq:
-                f.write("{}\t{}\n".format(pred_func, str(cnt)))
+    pred_func2ix = defaultdict()
+    for ix, (pred_func, cnt) in enumerate(prepared["pred_func2cnt"].most_common()):
+        if cnt >= min_pred_func_freq:
+            pred_func2ix[pred_func] = ix
+    pred_func2ix_file_path = os.path.join(transformed_info_dir, "pred_func2ix.txt")
+    with open(pred_func2ix_file_path, "w") as f:
+        for pred_func, ix in pred_func2ix.items():
+            f.write("{}\t{}\n".format(str(ix), pred_func))
 
-    lex_pred2cnt_file_path = os.path.join(run_dir, "lex_pred2cnt.txt")
-    with open(lex_pred2cnt_file_path, "w") as f:
-        for lex_pred, cnt in prepared["lex_pred2cnt"].most_common():
-            if cnt >= min_lex_pred_freq:
-                f.write("{}\t{}\n".format(lex_pred, str(cnt)))
+    pred_func2cnt_file_path = os.path.join(transformed_info_dir, "pred_func2cnt.txt")
+    with open(pred_func2cnt_file_path, "w") as f:
+        for ix, (pred_func, cnt) in enumerate(prepared["pred_func2cnt"].most_common()):
+            if cnt >= min_pred_func_freq:
+                f.write("{}\t{}\n".format(pred_func2ix[pred_func], str(cnt)))
 
     preds = set()
+    for content_pred, cnt in prepared["content_pred2cnt"].most_common():
+        if cnt >= min_content_pred_freq:
+            preds.add(content_pred)
     for pred_func, cnt in prepared["pred_func2cnt"].most_common():
         if cnt >= min_pred_func_freq:
             pred = pred_func.rsplit("@", 1)[0]
             preds.add(pred)
-        else:
-            break
     sorted_preds = sorted(list(preds))
     print ("saving pred2ix of {} predicates ...".format(len(sorted_preds)))
-    pred2ix_path = os.path.join(run_dir, "pred2ix.txt")
+    pred2ix = defaultdict()
+    pred2ix_path = os.path.join(transformed_info_dir, "pred2ix.txt")
     with open(pred2ix_path, "w") as f:
         for ix, pred in enumerate(sorted_preds):
+            pred2ix[pred] = ix
             f.write("{}\t{}\n".format(ix, pred))
 
-    print ("prepared run data saved at: {}".format(run_dir))
+    content_pred2cnt_file_path = os.path.join(transformed_info_dir, "content_pred2cnt.txt")
+    with open(content_pred2cnt_file_path, "w") as f:
+        for content_pred, cnt in prepared["content_pred2cnt"].most_common():
+            if cnt >= min_content_pred_freq:
+                f.write("{}\t{}\n".format(pred2ix[content_pred], str(cnt)))
 
-    errd2cnt_file_path = os.path.join(run_dir, "err2cnt.txt")
+    print ("prepared transformed data info saved at: {}".format(transformed_info_dir))
+
+    errd2cnt_file_path = os.path.join(transformed_info_dir, "err2cnt.txt")
     with open(errd2cnt_file_path, "w") as f:
         for err, cnt in prepared["err2cnt"].most_common():
             f.write("{}\t{}\n".format(err, str(cnt)))
 
-    pred_func2cnt, lex_pred2cnt = prepared["pred_func2cnt"] , prepared["lex_pred2cnt"]
 
-    data_loader_args = (min_pred_func_freq, min_lex_pred_freq, lex_pred2cnt, pred_func2cnt)
-    
-    transformed_dir =  os.path.join(data_dir, "transformed", config['name']) #"_{}".format(sample_str))
-    os.makedirs(transformed_dir, exist_ok = True)
+
+
+    # pred_func2cnt, content_pred2cnt = prepared["pred_func2cnt"] , prepared["content_pred2cnt"]
+    pred_func2cnt, content_pred2cnt, pred2ix, pred_func2ix = get_transformed_info(transformed_info_dir)
+
+    data_loader_args = (min_pred_func_freq, min_content_pred_freq, filter_min_freq, content_pred2cnt, pred_func2cnt, pred2ix, pred_func2ix)
 
     print ("retransforming the data given the min. freq. ...")
     
+    to_ix = True
     prepared = prepare_train(
-        data_dir, fig_dir, transformed_dir, transform_config, False, sample_only, q_snt_id, data_loader_args
+        data_dir, fig_dir, transformed_dir, transform_config, False, sample_only, q_snt_id, to_ix, data_loader_args
     )
 
-    # sorted_preds = sorted(list(prepared["pred2cnt"].keys()))
-    # print ("saving pred2ix of {} predicates ...".format(len(sorted_preds)))
-    # pred2ix_path = os.path.join(transformed_dir, "pred2ix.txt")
-    # with open(pred2ix_path, "w") as f:
-    #     for ix, pred in enumerate(sorted_preds):
-    #         f.write("{}\t{}\n".format(ix, pred))
+    print ("all logical expressions are translated.")
+
+    print ("balancing the splits ...")
+    balance_splits(transformed_dir)
         
-    print ("transformed data saved at: {}".format(transformed_dir))
+    print ("balanced transformed data saved at: {}".format(transformed_dir))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='prepare_train')
@@ -399,13 +425,11 @@ if __name__ == '__main__':
                       help='indices of GPUs to enable (default: all)')
     parser.add_argument('-t', '--draw_tree', default="no", type=str,
                       help='save the figure of logical expression tree')
-    parser.add_argument('-s', '--sample_only', default="no", type=str,
-                      help='prepare first few sample instances only')
     parser.add_argument('-q', '--q_snt_id', default=None, type=str,
                       help='prepare specific query snt_id only')
     args = parser.parse_args()
     # custom cli options to modify configuration from default values given in json file.
-    CustomArgs = namedtuple('CustomArgs', 'flags type target')
+    # CustomArgs = namedtuple('CustomArgs', 'flags type target')
     options = []
     config = ConfigParser.from_args(parser, options)
-    main(config, args.draw_tree, args.sample_only, args.q_snt_id)
+    main(config, args.draw_tree, args.q_snt_id)

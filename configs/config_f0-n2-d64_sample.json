@@ -1,13 +1,13 @@
 {
-    "name": "TCS_dummy",
-    "transformed_dir_name": "TCS_dummy",
-    "sample_only": false,
-    "n_gpu": 4,
+    "name": "TCS_f0-n2-d64_sample",
+    "transformed_dir_name": "TCS_f0_sample",
+    "sample_only": true,
+    "n_gpu": 2,
     "ddp": true,
     "encoder_arch": {
         "type": "BSGEncoder",
         "args": {
-            "hidden_act_func": "Tanh",
+            "hidden_act_func": "ReLU",
             "input_dim": 128,
             "hidden_dim": 64,
             "mu_dim": 64,
@@ -21,14 +21,14 @@
             "s_norm": "max",
             "take_log": false,
             "freq_sampling": true,
-            "num_negative_samples": 8,
+            "num_negative_samples": 2,
             "neg_cost": 1.0
         }
     },
     "autoencoder_arch": {
         "type": "VarAutoencoder",
         "args": {
-            "start_beta": 0.001,
+            "start_beta": 0.01,
             "end_beta": 1.0
         }
     },
@@ -45,7 +45,7 @@
         "type": "TwoPlaceSemFunc",
         "args": {
             "input_dim": 128,
-            "hidden_dim": 64,
+            "hidden_dim": 32,
             "hidden_act_func": "LeakyReLU",
             "output_act_func": "Sigmoid"
         }
@@ -53,14 +53,14 @@
     "data_loader": {
         "type": "DmrsDataLoader",
         "args": {
-            "data_dir": "data/dummy_data",
-            "transformed_dir": "data/dummy_data/transformed/TCS_dummy",
+            "data_dir": "data/27092022",
+            "transformed_dir": "data/27092022/transformed/TCS_f0_sample",
             "transform_config_file_path": "transform/configs/config.json",
             "batch_size": 1,
             "shuffle": true,
-            "num_workers": 2,
+            "num_workers": 0,
             "use_custom_collate_fn": true,
-            "pin_memory": true,
+            "pin_memory": false,
             "min_pred_func_freq": 0,
             "min_content_pred_freq": 0,
             "filter_min_freq": true
@@ -114,7 +114,7 @@
         }
     },
     "trainer": {
-        "epochs": 1,
+        "epochs": 2,
         "grad_accum_step": 256,
         "save_dir": "saved/",
         "save_period": 1,
@@ -126,8 +126,8 @@
     "eval_hyp_dataloader": {
         "type": "EvalHypDataLoader",
         "args": {
-            "hyp_data_dir": "eval_data/TCS_dummy/hyp",
-            "batch_size": 100,
+            "hyp_data_dir": "eval_data/TCS_f0_sample/hyp",
+            "batch_size": 3,
             "shuffle": false,
             "num_workers": 1,
             "pin_memory": true

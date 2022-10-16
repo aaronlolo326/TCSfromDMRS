@@ -1,5 +1,5 @@
 {
-    "lexical_pos": [
+    "content_pos": [
         "n",
         "a",
         "v"
@@ -13,7 +13,6 @@
             "pron",
             "generic_entity",
             "generic_entity",
-            "pron",
             "thing",
             "person",
             "place_n",
@@ -827,15 +826,41 @@
             ]
         }
     },
+    "modals": [
+        "_can_v_modal",
+        "_would_v_modal",
+        "_may_v_modal",
+        "_could_v_modal",
+        "_must_v_modal",
+        "_should_v_modal",
+        "_have_v_qmodal",
+        "_might_v_modal",
+        "_going+to_v_qmodal",
+        "_used+to_v_qmodal",
+        "_ought_v_qmodal",
+        "_need_v_qmodal",
+        "_dare_v_qmodal",
+        "_had+better_v_qmodal",
+        "_had+best_v_qmodal",
+        "_gotta_v_modal"
+    ],
     "ignore": [
-        "_threedot-pnct_a_1"
+        "_threedot-pnct_a_1",
+        "_also_a_1",
+        "_other_a_1",
+        "_re-_a_again",
+        "_however_a_1",
+        "_several_a_1",
+        "_then_a_1",
+        "_only_a_1",
+        "_there_a_1"
     ],
     "ignore_scopal_adv": true,
     "ignore_modal_verb": true,
     "transformed_keys": [
         "node2pred",
         "pred_func_nodes",
-        "lexical_preds",
+        "content_preds",
         "logic_expr",
         "pred_func_used"
     ]

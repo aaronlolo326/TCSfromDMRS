@@ -1,7 +1,14 @@
 import torch
 
-def training_loss(loss):
-    return loss
+def training_loss(x):
+    return x
+def log_fuzzy_truthness(x):
+    return x
+def kl_div(x):
+    return x
+
+# def training_loss(loss):
+#     return loss
 
 # def accuracy(output, target):
 #     with torch.no_grad():

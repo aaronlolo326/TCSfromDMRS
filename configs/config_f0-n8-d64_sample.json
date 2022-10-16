@@ -1,7 +1,7 @@
 {
-    "name": "TCS_dummy",
-    "transformed_dir_name": "TCS_dummy",
-    "sample_only": false,
+    "name": "TCS_f0-n8-d64_sample",
+    "transformed_dir_name": "TCS_f0_sample",
+    "sample_only": true,
     "n_gpu": 4,
     "ddp": true,
     "encoder_arch": {
@@ -53,12 +53,12 @@
     "data_loader": {
         "type": "DmrsDataLoader",
         "args": {
-            "data_dir": "data/dummy_data",
-            "transformed_dir": "data/dummy_data/transformed/TCS_dummy",
+            "data_dir": "data/27092022",
+            "transformed_dir": "data/27092022/transformed/TCS_f0_sample",
             "transform_config_file_path": "transform/configs/config.json",
             "batch_size": 1,
             "shuffle": true,
-            "num_workers": 2,
+            "num_workers": 0,
             "use_custom_collate_fn": true,
             "pin_memory": true,
             "min_pred_func_freq": 0,
@@ -126,7 +126,7 @@
     "eval_hyp_dataloader": {
         "type": "EvalHypDataLoader",
         "args": {
-            "hyp_data_dir": "eval_data/TCS_dummy/hyp",
+            "hyp_data_dir": "eval_data/TCS_f0_sample/hyp",
             "batch_size": 100,
             "shuffle": false,
             "num_workers": 1,

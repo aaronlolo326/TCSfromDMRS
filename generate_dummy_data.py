@@ -3,7 +3,7 @@ from delphin import scope
 from delphin.dmrs import from_mrs
 from delphin.codecs import simplemrs, dmrsjson
 
-from src import dg_util
+from src import dg_util, util
 
 import os
 import json
@@ -86,12 +86,16 @@ text_no_parse = [
     # ['Cats, dogs and lions that do not run do not walk', 1],
     # ['Software engineers love programming.', 2],
     # ["Dogs bark or don't bark happily", 0],
-    # ['I heard the claim that dogs do not run and swim', 0],
+    # ['I am the claim that dogs do not run and swim', 0],
     # ['Every dog did not leave.', 0],
-    ['I want to eat all apples or oranges like all dogs or cats', 0],
+    # ['I want to eat all apples or oranges like all dogs or cats', 0],
     # ['Not working out or not eating enough proteins are not all the reasons for not gaining muscles or not graduating', 0],
-    ['Do not let nobody not eat no food', 0],
-    ['My mum or I made a sandwich or chicken for breakfast and lunch', 0]
+    # ['Do not let nobody not eat no food', 0],
+    # ['My mum or I made a sandwich or chicken for breakfast and lunch', 0],
+    # ['A cat can either be a house cat, a farm cat, or a feral cat.', 0],
+    # ['Lions can be cats, animals and information about books', 0]
+    ['He is cats.', 0],
+    ['Dogs are cats.', 0]
 ]
 
 os.makedirs(dummy_data_dir, exist_ok = True)

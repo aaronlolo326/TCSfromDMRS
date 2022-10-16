@@ -1,6 +1,6 @@
 {
   "0": {
-    "snt": "I want to eat all apples or oranges like all dogs or cats",
+    "snt": "He is cats.",
     "id": 0,
     "dmrs": {
       "directed": true,
@@ -25,102 +25,23 @@
         },
         {
           "cvarsort": "e",
-          "predicate": "_want_v_1",
-          "lemma": "want",
+          "predicate": "_be_v_id",
+          "lemma": "be",
           "pos": "v",
           "id": 10002
         },
         {
-          "cvarsort": "e",
-          "predicate": "_eat_v_1",
-          "lemma": "eat",
-          "pos": "v",
+          "predicate": "udef_q",
+          "lemma": "udef",
+          "pos": "q",
           "id": 10003
-        },
-        {
-          "predicate": "_all_q",
-          "lemma": "all",
-          "pos": "q",
-          "id": 10004
-        },
-        {
-          "predicate": "udef_q",
-          "lemma": "udef",
-          "pos": "q",
-          "id": 10005
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_apple_n_1",
-          "lemma": "apple",
-          "pos": "n",
-          "id": 10006
-        },
-        {
-          "predicate": "udef_q",
-          "lemma": "udef",
-          "pos": "q",
-          "id": 10007
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_or_c",
-          "lemma": "or",
-          "pos": "c",
-          "id": 10008
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_orange_n_1",
-          "lemma": "orange",
-          "pos": "n",
-          "id": 10009
-        },
-        {
-          "cvarsort": "e",
-          "predicate": "_like_p",
-          "lemma": "like",
-          "pos": "p",
-          "id": 10010
-        },
-        {
-          "predicate": "_all_q",
-          "lemma": "all",
-          "pos": "q",
-          "id": 10011
-        },
-        {
-          "predicate": "udef_q",
-          "lemma": "udef",
-          "pos": "q",
-          "id": 10012
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_dog_n_1",
-          "lemma": "dog",
-          "pos": "n",
-          "id": 10013
-        },
-        {
-          "predicate": "udef_q",
-          "lemma": "udef",
-          "pos": "q",
-          "id": 10014
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_or_c",
-          "lemma": "or",
-          "pos": "c",
-          "id": 10015
         },
         {
           "cvarsort": "x",
           "predicate": "_cat_n_1",
           "lemma": "cat",
           "pos": "n",
-          "id": 10016
+          "id": 10004
         }
       ],
       "links": [
@@ -137,175 +58,63 @@
           "key": 0
         },
         {
-          "label": "ARG2/H",
+          "label": "ARG2/NEQ",
           "source": 10002,
-          "target": 10003,
+          "target": 10004,
           "key": 0
         },
         {
-          "label": "ARG1/NEQ",
+          "label": "RSTR/H",
           "source": 10003,
-          "target": 10000,
-          "key": 0
-        },
-        {
-          "label": "ARG2/NEQ",
-          "source": 10003,
-          "target": 10008,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10004,
-          "target": 10008,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10005,
-          "target": 10006,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10007,
-          "target": 10009,
-          "key": 0
-        },
-        {
-          "label": "L-INDEX/NEQ",
-          "source": 10008,
-          "target": 10006,
-          "key": 0
-        },
-        {
-          "label": "R-INDEX/NEQ",
-          "source": 10008,
-          "target": 10009,
-          "key": 0
-        },
-        {
-          "label": "ARG1/EQ",
-          "source": 10010,
-          "target": 10008,
-          "key": 0
-        },
-        {
-          "label": "ARG2/NEQ",
-          "source": 10010,
-          "target": 10015,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10011,
-          "target": 10015,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10012,
-          "target": 10013,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10014,
-          "target": 10016,
-          "key": 0
-        },
-        {
-          "label": "L-INDEX/NEQ",
-          "source": 10015,
-          "target": 10013,
-          "key": 0
-        },
-        {
-          "label": "R-INDEX/NEQ",
-          "source": 10015,
-          "target": 10016,
+          "target": 10004,
           "key": 0
         }
       ]
     }
   },
   "1": {
-    "snt": "Do not let nobody not eat no food",
+    "snt": "Dogs are cats.",
     "id": 1,
     "dmrs": {
       "directed": true,
       "multigraph": true,
       "graph": {
-        "index": 10003,
+        "index": 10002,
         "top": 10002
       },
       "nodes": [
         {
-          "predicate": "pronoun_q",
-          "lemma": "pronoun",
+          "predicate": "udef_q",
+          "lemma": "udef",
           "pos": "q",
           "id": 10000
         },
         {
           "cvarsort": "x",
-          "predicate": "pron",
-          "lemma": "pron",
-          "pos": "S",
+          "predicate": "_dog_n_1",
+          "lemma": "dog",
+          "pos": "n",
           "id": 10001
         },
         {
-          "cvarsort": "i",
-          "predicate": "neg",
-          "lemma": "neg",
-          "pos": "S",
+          "cvarsort": "e",
+          "predicate": "_be_v_id",
+          "lemma": "be",
+          "pos": "v",
           "id": 10002
         },
         {
-          "cvarsort": "e",
-          "predicate": "_let_v_1",
-          "lemma": "let",
-          "pos": "v",
+          "predicate": "udef_q",
+          "lemma": "udef",
+          "pos": "q",
           "id": 10003
         },
         {
           "cvarsort": "x",
-          "predicate": "person",
-          "lemma": "person",
-          "pos": "S",
-          "id": 10004
-        },
-        {
-          "predicate": "_no_q",
-          "lemma": "no",
-          "pos": "q",
-          "id": 10005
-        },
-        {
-          "cvarsort": "e",
-          "predicate": "neg",
-          "lemma": "neg",
-          "pos": "S",
-          "id": 10006
-        },
-        {
-          "cvarsort": "e",
-          "predicate": "_eat_v_1",
-          "lemma": "eat",
-          "pos": "v",
-          "id": 10007
-        },
-        {
-          "predicate": "_no_q",
-          "lemma": "no",
-          "pos": "q",
-          "id": 10008
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_food_n_1",
-          "lemma": "food",
+          "predicate": "_cat_n_1",
+          "lemma": "cat",
           "pos": "n",
-          "id": 10009
+          "id": 10004
         }
       ],
       "links": [
@@ -316,239 +125,12 @@
           "key": 0
         },
         {
-          "label": "ARG1/H",
-          "source": 10002,
-          "target": 10003,
-          "key": 0
-        },
-        {
           "label": "ARG1/NEQ",
-          "source": 10003,
+          "source": 10002,
           "target": 10001,
           "key": 0
         },
         {
-          "label": "ARG2/H",
-          "source": 10003,
-          "target": 10006,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10005,
-          "target": 10004,
-          "key": 0
-        },
-        {
-          "label": "ARG1/H",
-          "source": 10006,
-          "target": 10007,
-          "key": 0
-        },
-        {
-          "label": "ARG1/NEQ",
-          "source": 10007,
-          "target": 10004,
-          "key": 0
-        },
-        {
-          "label": "ARG2/NEQ",
-          "source": 10007,
-          "target": 10009,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10008,
-          "target": 10009,
-          "key": 0
-        }
-      ]
-    }
-  },
-  "2": {
-    "snt": "My mum or I made a sandwich or chicken for breakfast and lunch",
-    "id": 2,
-    "dmrs": {
-      "directed": true,
-      "multigraph": true,
-      "graph": {
-        "index": 10009,
-        "top": 10009
-      },
-      "nodes": [
-        {
-          "predicate": "udef_q",
-          "lemma": "udef",
-          "pos": "q",
-          "id": 10000
-        },
-        {
-          "predicate": "def_explicit_q",
-          "lemma": null,
-          "pos": null,
-          "id": 10001
-        },
-        {
-          "cvarsort": "e",
-          "predicate": "poss",
-          "lemma": "poss",
-          "pos": "S",
-          "id": 10002
-        },
-        {
-          "predicate": "pronoun_q",
-          "lemma": "pronoun",
-          "pos": "q",
-          "id": 10003
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "pron",
-          "lemma": "pron",
-          "pos": "S",
-          "id": 10004
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_mum_n_1",
-          "lemma": "mum",
-          "pos": "n",
-          "id": 10005
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_or_c",
-          "lemma": "or",
-          "pos": "c",
-          "id": 10006
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "pron",
-          "lemma": "pron",
-          "pos": "S",
-          "id": 10007
-        },
-        {
-          "predicate": "pronoun_q",
-          "lemma": "pronoun",
-          "pos": "q",
-          "id": 10008
-        },
-        {
-          "cvarsort": "e",
-          "predicate": "_make_v_1",
-          "lemma": "make",
-          "pos": "v",
-          "id": 10009
-        },
-        {
-          "predicate": "_a_q",
-          "lemma": "a",
-          "pos": "q",
-          "id": 10010
-        },
-        {
-          "predicate": "udef_q",
-          "lemma": "udef",
-          "pos": "q",
-          "id": 10011
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_sandwich_n_1",
-          "lemma": "sandwich",
-          "pos": "n",
-          "id": 10012
-        },
-        {
-          "predicate": "udef_q",
-          "lemma": "udef",
-          "pos": "q",
-          "id": 10013
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_or_c",
-          "lemma": "or",
-          "pos": "c",
-          "id": 10014
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_chicken_n_1",
-          "lemma": "chicken",
-          "pos": "n",
-          "id": 10015
-        },
-        {
-          "cvarsort": "e",
-          "predicate": "_for_p",
-          "lemma": "for",
-          "pos": "p",
-          "id": 10016
-        },
-        {
-          "predicate": "udef_q",
-          "lemma": "udef",
-          "pos": "q",
-          "id": 10017
-        },
-        {
-          "predicate": "udef_q",
-          "lemma": "udef",
-          "pos": "q",
-          "id": 10018
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_breakfast_n_1",
-          "lemma": "breakfast",
-          "pos": "n",
-          "id": 10019
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_and_c",
-          "lemma": "and",
-          "pos": "c",
-          "id": 10020
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_lunch_n_1",
-          "lemma": "lunch",
-          "pos": "n",
-          "id": 10021
-        },
-        {
-          "predicate": "def_implicit_q",
-          "lemma": null,
-          "pos": null,
-          "id": 10022
-        }
-      ],
-      "links": [
-        {
-          "label": "RSTR/H",
-          "source": 10000,
-          "target": 10006,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10001,
-          "target": 10005,
-          "key": 0
-        },
-        {
-          "label": "ARG1/EQ",
-          "source": 10002,
-          "target": 10005,
-          "key": 0
-        },
-        {
           "label": "ARG2/NEQ",
           "source": 10002,
           "target": 10004,
@@ -558,108 +140,6 @@
           "label": "RSTR/H",
           "source": 10003,
           "target": 10004,
-          "key": 0
-        },
-        {
-          "label": "L-INDEX/NEQ",
-          "source": 10006,
-          "target": 10005,
-          "key": 0
-        },
-        {
-          "label": "R-INDEX/NEQ",
-          "source": 10006,
-          "target": 10007,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10008,
-          "target": 10007,
-          "key": 0
-        },
-        {
-          "label": "ARG1/NEQ",
-          "source": 10009,
-          "target": 10006,
-          "key": 0
-        },
-        {
-          "label": "ARG2/NEQ",
-          "source": 10009,
-          "target": 10014,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10010,
-          "target": 10014,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10011,
-          "target": 10012,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10013,
-          "target": 10015,
-          "key": 0
-        },
-        {
-          "label": "L-INDEX/NEQ",
-          "source": 10014,
-          "target": 10012,
-          "key": 0
-        },
-        {
-          "label": "R-INDEX/NEQ",
-          "source": 10014,
-          "target": 10015,
-          "key": 0
-        },
-        {
-          "label": "ARG1/EQ",
-          "source": 10016,
-          "target": 10014,
-          "key": 0
-        },
-        {
-          "label": "ARG2/NEQ",
-          "source": 10016,
-          "target": 10020,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10017,
-          "target": 10020,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10018,
-          "target": 10019,
-          "key": 0
-        },
-        {
-          "label": "L-INDEX/NEQ",
-          "source": 10020,
-          "target": 10019,
-          "key": 0
-        },
-        {
-          "label": "R-INDEX/NEQ",
-          "source": 10020,
-          "target": 10021,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10022,
-          "target": 10021,
           "key": 0
         }
       ]

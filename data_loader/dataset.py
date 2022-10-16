@@ -1,9 +1,8 @@
 import os
+
 import json
 import torch
-from torch.utils.data import Dataset
-
-from pprint import pprint
+from torch.utils.data import Dataset, IterableDataset
 
 try:
     __IPYTHON__
@@ -16,10 +15,13 @@ import networkx as nx
 from pprint import pprint
 from src import util
 
+import sys
+from pympler import asizeof
+
     
 class DmrsDataset(Dataset):
     
-    def __init__(self, data_dir, transformed_dir, transform = None, sample_only = False):
+    def __init__(self, data_dir, transformed_dir, transform = None, num_replicas = 0, rank = None):
         """
         Args:
             csv_file (string): Path to the csv file with annotations.
@@ -42,36 +44,51 @@ class DmrsDataset(Dataset):
         self.transform = transform
         self.instance_list = []
         self.transformed_list = []
+        self.sub_transformed_list = []
+        self.num_instance = 0
+        self.rank = rank
+        self.num_replicas = num_replicas
+        self.unloaded_files = []
 
-        if transform:
-            for root, dirs, files in tqdm(os.walk(self.data_dir)):
-                for file in files:
-                    if not util.is_data_json(file):
-                        continue
-                    with open(os.path.join(self.data_dir, file)) as f:
-                        idx2instance = json.load(f)
-                        self.instance_list = [*self.instance_list, *list(idx2instance.values())]
-                    if sample_only:
-                        break
-                if sample_only:
-                    break
+        # if transform:
+        #     for root, dirs, files in tqdm(os.walk(self.data_dir)):
+        #         for file in files:
+        #             if not util.is_data_json(file):
+        #                 continue
+        #             with open(os.path.join(self.data_dir, file)) as f:
+        #                 idx2instance = json.load(f)
+        #                 self.num_instance += len(idx2instance)
+        #                 self.instance_list.extend(list(idx2instance.values()))
 
         ## elif transformed
-        else:
-            transformed_files = [file for file in os.listdir(self.transformed_dir) if all([
-                os.path.isfile(os.path.join(self.transformed_dir, file)),
-                file.startswith("transformed_"),
-                util.is_data_json(file)
-                ])
-            ]
-            for file in transformed_files:
+        if True:
+            for file in os.listdir(self.transformed_dir):
+                if all([
+                    os.path.isfile(os.path.join(self.transformed_dir, file)),
+                    file.startswith("transformed_"),
+                    util.is_data_json(file)
+                ]):
+                # for splitting dataset based on rank
+                    # print (file)
+                    suffix = int(file.rsplit(".", 1)[0].split("_")[1])
+                    # print (suffix)
+                    # print (num_replicas, rank)
+                    if rank == 'cpu' or num_replicas == 0:
+                        self.unloaded_files.append(file)
+                    elif rank == None or suffix % num_replicas == rank:
+                        self.unloaded_files.append(file)
+            for file in tqdm(self.unloaded_files):
                 with open(os.path.join(self.transformed_dir, file)) as f:
+                    print (os.path.join(self.transformed_dir, file))
                     transformed = json.load(f)
-                    if sample_only:
-                        transformed = transformed[:10]
-                    self.transformed_list = [*self.transformed_list, *transformed]
-                if sample_only:
-                    break
+                    # print ("transformed: ", asizeof.asizeof(transformed))
+                    # print ("len(transformed): ", (len(transformed)))
+                    self.num_instance += len(transformed)
+                    self.transformed_list.extend(transformed)
+                    # print ("transformed_list: ", asizeof.asizeof(self.transformed_list))
+                    print ("len(transformed_list): ", len(self.transformed_list))
+                    del transformed
+                    # if self.sub_transformed_list == []:
                     
         # with open(os.path.join(data_info_dir, "idx2file_path.json")) as f:
         #     idx2file_path = json.load(f)
@@ -80,21 +97,27 @@ class DmrsDataset(Dataset):
         
 
     def __len__(self):
-        if self.transform:
-            return len(self.instance_list)
-        else:
-            return len(self.transformed_list)
 
-    def __getitem__(self, idx):        
+        return self.num_instance 
+        # if self.transform:
+        #     return len(self.instance_list)
+        # else:
+        #     return len(self.transformed_list)
+
+    def __getitem__(self, idx):
         
         ## Lazy loading
-#         file_path = self.idx2file_path[str(idx)]
-#         with open(os.path.join(self.data_dir, file_path)) as f:
-#             idx2instance = json.load(f)
-#         sample = idx2instance[str(idx)]
+        # if self.sub_transformed_list == []:
+        #     if self.unloaded_files == []:
+        #         # no more data
+        #         pass
+        #     else:
+        #         file = self.unloaded_files.pop(0)
+        #         with open(os.path.join(self.transformed_dir, file)) as f:
+        #             transformed = json.load(f)
+        #             self.sub_transformed_list = transformed
 
-#         if self.transform:
-#             sample = self.transform(sample)
+        # return self.sub_transformed_list[idx]
 
         ## Load all at once
         if self.transform:
@@ -104,76 +127,117 @@ class DmrsDataset(Dataset):
             sample = self.transformed_list[idx]
             
         return sample
-    
-        
 
-#     def __len__(self):
-#         return len(self.json_data)
 
-#     def __getitem__(self, idx):
-#         return self.json_data[idx]
-#         # img_path = os.path.join(self.img_dir, self.img_labels.iloc[idx, 0])
-#         # image = read_image(img_path)
-#         # label = self.img_labels.iloc[idx, 1]
-#         # if self.transform:
-#         #     image = self.transform(image)
-#         # if self.target_transform:
-#         #     label = self.target_transform(label)
-#         # return image, label
+class DmrsIterDataset(IterableDataset):
     
-#     def get_pred(self,part_of_speech="no_input"):
-#         pred_list = set()
-#         for data in self.json_data:
-#             for node in data["dmrs"]["nodes"]:
-#                 if part_of_speech in ["x","e"]:
-#                     if node["cvarsot"]==part_of_speech:
-#                         pred_list.add(node["predicate"])
-#                 else:
-#                     if not(node["predicate"] in pred_list):
-#                         pred_list.append(node["predicate"])
-                         
+    def __init__(self, data_dir, transformed_dir, transform = None):
+        """
+        Args:
+            csv_file (string): Path to the csv file with annotations.
+            root_dir (string): Directory with all the images.
+            transform (callable, optional): Optional transform to be applied
+                on a sample.
+        """
+        ## Lazy loading
+        # self.data_dir = data_dir
+        # data_info_dir = os.path.join(data_dir, "info")
+        # with open(os.path.join(data_info_dir, "idx2file_path.json")) as f:
+        #     idx2file_path = json.load(f)
+        # self.idx2file_path = idx2file_path
+        # self.transform = transform
         
-#         return pred_list
-    
+        ## Load all at once
 
-    
-    
-    
-    
-#     def get_verb_connection(self):
-        
-#         # each verb serve as a key to a list of 3 tuples(the verb plus the two nouns it connects to)
-#         pred_verb_list=self.get_pred("e")
-#         verb_connection_dict={}
-#         for pred_verb in pred_verb_list:
-#             verb_connection_dict[pred_verb]=[]
-        
-#         for data in self.json_data:
-#             sub_list=[]
-#             verb=0
+        self.data_dir = data_dir
+        self.transformed_dir = transformed_dir
+        self.transform = transform
+        self.transformed_list = []
+        self.sub_transformed_list = []
 
-#             for node in data["dmrs"]["nodes"]:
-#                 sub_list.append(node["predicate"])
-#                 if node["cvarsot"]=="e":
-#                     verb=node["predicate"]
-#             verb_connection_dict[verb].append(sub_list)
+        # if transform:
+        #     for root, dirs, files in tqdm(os.walk(self.data_dir)):
+        #         for file in files:
+        #             if not util.is_data_json(file):
+        #                 continue
+        #             with open(os.path.join(self.data_dir, file)) as f:
+        #                 idx2instance = json.load(f)
+        #                 self.num_instance += len(idx2instance)
+        #                 self.instance_list.extend(list(idx2instance.values()))
+
+        ## elif transformed
+        if True:
+            self.unloaded_files = [file for file in os.listdir(self.transformed_dir) if all([
+                os.path.isfile(os.path.join(self.transformed_dir, file)),
+                file.startswith("transformed_"),
+                util.is_data_json(file)
+                ])
+            ]
+                    
+        # with open(os.path.join(data_info_dir, "idx2file_path.json")) as f:
+        #     idx2file_path = json.load(f)
+        # self.idx2file_path = idx2file_path
+        # self.transform = transform       
+
+    def __iter__(self):
+        
+        # Lazy loading
+        if self.sub_transformed_list == []:
+            if self.unloaded_files == []:
+                # no more data
+                pass
+            else:
+                file = self.unloaded_files.pop(0)
+                with open(os.path.join(self.transformed_dir, file)) as f:
+                    transformed = json.load(f)
+                    self.sub_transformed_list = transformed
+
+        # return self.sub_transformed_list[idx]
+
+        ## Load all at once
+        if self.transform:
+            sample = self.instance_list[idx]
+            sample = self.transform(sample)
+        else:
+            sample = self.transformed_list[idx]
             
-#         return verb_connection_dict
+        return sample
 
-    
-    
-    
-    
-#     def get_function_dict(self):
-#         # each predicate will work as a key to its corresponding function(not defined)
-#         predicate_verb_list=self.get_pred("e")
-#         predicate_noun_list=self.get_pred("x")
-#         funct_dict={}
-#         for pred_verb in predicate_verb_list:
 
-#             funct_dict[pred_verb]=function.Model(30,30)
-#         for pred_noun in predicate_noun_list:
+class HypEvalDataset(Dataset):
+            
+    def __init__(self, hyp_data_path = None, do_trasnform = True, pred_func2ix = None, pred2ix = None):
+        """
+        Args:
+            csv_file (string): Path to the csv file with annotations.
+            root_dir (string): Directory with all the images.
+            transform (callable, optional): Optional transform to be applied
+                on a sample.
+        """
 
-#             funct_dict[pred_noun]=function.Model(10,10)
+        self.hyp_data_path = hyp_data_path
+        self.hyp_pred_pairs = []
+        self.pred_func2ix = pred_func2ix
+        self.pred2ix = pred2ix
+        self.do_trasnform = do_trasnform
+        if True:
+            with open(self.hyp_data_path) as f:
+                hyp_pred_pairs = json.load(f)
+                self.hyp_pred_pairs = hyp_pred_pairs
 
-#         return funct_dict
+    def __len__(self):
+        return len(self.hyp_pred_pairs)
+
+    def __getitem__(self, idx):
+        if not self.do_trasnform: 
+            sample = self.hyp_pred_pairs[idx]
+        else:
+            # print (idx)
+            # print (self.hyp_pred_pairs)
+            sample_list = [
+                *[self.pred2ix[pred] for pred in self.hyp_pred_pairs[idx]],
+                # *[self.pred2ix[pred] for pred in self.hyp_pred_pairs[idx][::-1]],
+                *[self.pred_func2ix[pred + "@ARG0"] for pred in self.hyp_pred_pairs[idx]]
+            ]
+            sample = torch.tensor(sample_list, dtype = torch.int32)
+        return sample
