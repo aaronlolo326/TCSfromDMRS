@@ -59,54 +59,8 @@ def normalize_pred(pred, unk2pos):
 
 
 text_no_parse = [
-    # ['Dogs love cats.', 0],
-    # ['Dogs hope to want to eat fish', 0],
-    # ['Happy dogs, cats and lions run.', 2],
-    # ['Happy or sad dogs run or swim.', 0],
-    # ['Dogs, cats, lions or ducks swim.', 0],
-    # ['Dogs run, swim or bark very happily or sadly.', 9],
-    # ['Dogs listen, swim, eat or bark very happily or sadly.', 2],
-    # ['Big and small dogs run or swim very happily or sadly.', 3],
-    # ['Dogs or lions and bears or cats learn, lose and eat.', 0],
-    # ['Dogs can probably not run very happily.', 0], # neg
-    # ['No humans could survive with no water or oxygen.', 0],
-    # ['Happy dogs and sad cats that run eat no apples and oranges', 0], # prb
-    # ['large pet dogs with paws which no normal people are afraid of are gentle if dogs are raised properly or not trained.', 0],
-    # ['dogs or cats that run or swim eat food', 0],
-    # ['If bears and sad cats eat quickly or slowly, birds run.', 0],
-    # ['Kim knows that Sandy did not leave.', 0],
-    # ['Dogs want to run, play or swim happily, immediately or sadly.', 0],
-    # ['Dogs like running or swimming happily', 16],
-    # ['Lions know no information about no dogs and cats', 0],
-    # ['no dogs and cats eat no apples and oranges', 0],
-    # ['no dogs and cats want to eat no apples and oranges', 0],
-    # ['It is raining.', 0],
-    # ['Every dog that does not bark does not love cats that do not run.', 0],
-    # ['Not every dog runs.', 0],
-    # ['Cats, dogs and lions that do not run do not walk', 1],
-    # ['Software engineers love programming.', 2],
-    # ["Dogs bark or don't bark happily", 0],
-    # ['I am the claim that dogs do not run and swim', 0],
-    # ['Every dog did not leave.', 0],
-    # ['I want to eat all apples or oranges like all dogs or cats', 0],
-    # ['Not working out or not eating enough proteins are not all the reasons for not gaining muscles or not graduating', 0],
-    # ['Do not let nobody not eat no food', 0],
-    # ['My mum or I made a sandwich or chicken for breakfast and lunch', 0],
-    # ['A cat can either be a house cat, a farm cat, or a feral cat.', 0],
-    ['Lions are cats, animals and mammals', 0],
-    # ['Dogs know the claim that cats can run.', 0]
-    # ['He is cats.', 0],
-    # ['Dogs are cats.', 0]
-
-
-    # ['Dogs are animals.', 0], 
-    # ['Cats are animals.', 0], 
-    # ['Dogs can run.', 0], 
-    # ['Cats can run.', 0], 
-    # ['Hot dogs are yummy.', 0], 
-    # ['.', 0], 
-    # ['Dogs are animals.', 0], 
-    # ['Dogs are animals.', 0],
+    ['If bears and sad cats eat quickly or slowly, birds run.', 0],
+    ['Lions are cats, animals and mammals', 0]
 ]
 
 os.makedirs(dummy_data_dir, exist_ok = True)

@@ -377,7 +377,7 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--resume', default=None, type=str,
                       help='path to latest checkpoint (default: None)')
     parser.add_argument('-o','--batch_results_dirs', action='append', default=None, type=str, help='paths to result dirs for ensembling; using previous outputs (default: None)')
-    parser.add_argument('-p','--checkpoints', action='append', default=None, type=str, help='paths to checkpoints for ensembling; run new eval (default: None)')
+    parser.add_argument('-p','--checkpoints', action='append', default=None, type=str, help='paths to checkpoints for ensembling; run new eval (default: None) if -o not provided')
     parser.add_argument('-b','--comp_baseline', default=None, type=str, help='eval_data_sets path for comparison against baseline (default: None)')
     parser.add_argument('-d', '--device', default=None, type=str,
                       help='indices of GPUs to enable (default: all)')

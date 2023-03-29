@@ -159,17 +159,6 @@
             "collate_fn": "EvalGS2011PASCollator"
         }
     },
-    "eval_ks2013_dataloader": {
-        "type": "EvalGS2011DataLoader",
-        "args": {
-            "data_dir": "eval_data/TCS_f100-lgF-PAS-Gen/ks2013",
-            "batch_size": 1,
-            "shuffle": false,
-            "num_workers": 0,
-            "pin_memory": false,
-            "collate_fn": "EvalGS2011PASCollator"
-        }
-    },
     "evaluator": {
         "results_dir": "results/"
     }

@@ -29,13 +29,12 @@ class Evaluator():
         self.autoencoder = autoencoder
         self.with_logic = config['with_logic']
 
-        eval_relpron_dataloaders, eval_gs2011_dataloaders, eval_gs2013_dataloaders, eval_gs2012_dataloaders, eval_ks2013_dataloaders = dataloaders
+        eval_relpron_dataloaders, eval_gs2011_dataloaders, eval_gs2013_dataloaders, eval_gs2012_dataloaders = dataloaders
         # self.eval_hyp_dataloaders = eval_hyp_dataloaders
         self.eval_relpron_dataloaders = eval_relpron_dataloaders
         self.eval_gs2011_dataloaders = eval_gs2011_dataloaders
         self.eval_gs2013_dataloaders = eval_gs2013_dataloaders
         self.eval_gs2012_dataloaders = eval_gs2012_dataloaders
-        self.eval_ks2013_dataloaders = eval_ks2013_dataloaders
 
         self.device = device
         self.write_file = True
@@ -315,12 +314,6 @@ class Evaluator():
                 results_metrics['gs2012{}'.format(use_arg1_arg2_str)] = gs2012_results_metrics
                 results['gs2012{}'.format(use_arg1_arg2_str)] = gs2012_svo_landmark2results
             print ("GS2012 evaluated")
-        if self.eval_ks2013_dataloaders != None:
-            for use_arg1_arg2_str, use_arg1_arg2 in use_arg1_arg2s.items():
-                ks2013_results_metrics, ks2013_svo_landmark2results = self.eval_gs_one_layer(batch_results_dir, use_arg1_arg2, epoch, batch_idx, "ks2013")
-                results_metrics['ks2013{}'.format(use_arg1_arg2_str)] = ks2013_results_metrics
-                results['ks2013{}'.format(use_arg1_arg2_str)] = ks2013_svo_landmark2results
-            print ("KS2013 evaluated")
 
         t1 = time.time()
         print ("Evaluation finished in {}s".format(t1 - t0))

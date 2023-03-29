@@ -1232,7 +1232,7 @@ class TruthConditions(object):
                 the_len_1 = len(next(it))
             # print (the_len_1)
                 if not all(len(l) == the_len_1 for l in it):
-                    print ("not all pred_func_nodes_ctxt_preds have same length")
+                    # print ("not all pred_func_nodes_ctxt_preds have same length")
                     # pprint (self.pred_func_nodes_ctxt_preds)
                     self.discarded = True
                     self.discarded_reason = "not all pred_func_nodes_ctxt_preds have same length"
@@ -1241,20 +1241,20 @@ class TruthConditions(object):
                 it = iter(self.pred_func_nodes_ctxt_args.copy())
                 the_len_2 = len(next(it))
                 if not all(len(l) == the_len_2 for l in it):
-                    print ("not all pred_func_nodes_ctxt_args have same length")
+                    # print ("not all pred_func_nodes_ctxt_args have same length")
                     # pprint (self.pred_func_nodes_ctxt_args)
                     self.discarded = True
                     self.discarded_reason = "not all pred_func_nodes_ctxt_args have same length"
                     # raise ValueError('not all pred_func_nodes_ctxt_args have same length!')
             if the_len_1 != the_len_2:
-                print ('pred_func_nodes_ctxt_preds length != pred_func_nodes_ctxt_args length')
+                # print ('pred_func_nodes_ctxt_preds length != pred_func_nodes_ctxt_args length')
                 self.discarded = True
                 self.discarded_reason = "pred_func_nodes_ctxt_preds length != pred_func_nodes_ctxt_args length"
                 # raise ValueError('pred_func_nodes_ctxt_preds len != pred_func_nodes_ctxt_args len')
 
             len_pred_args = [len(pred_args) == 0 for pred_args in self.pred_func_nodes_ctxt_pred_args]
             if any(len_pred_args):
-                print ('pred_func_nodes_ctxt_pred_args contains length-0 list')
+                # print ('pred_func_nodes_ctxt_pred_args contains length-0 list')
                 self.discarded = True
                 self.discarded_reason = "pred_func_nodes_ctxt_pred_args contains length-0 list"
                 #

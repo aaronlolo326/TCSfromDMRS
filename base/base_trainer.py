@@ -231,18 +231,6 @@ class BaseTrainer:
                     for idx, path in enumerate(gs2012_data_path)
                 }
 
-            if self.config["eval_ks2013_dataloader"]['type'] != None:
-                ks2013_data_dir = os.path.join(self.config["eval_ks2013_dataloader"]["args"]["data_dir"], "data")
-                ks2013_data_path = [os.path.join(ks2013_data_dir, file) for file in os.listdir(ks2013_data_dir) if os.path.isfile(os.path.join(ks2013_data_dir, file))]
-                ks2013_file_names = [file.rsplit(".", 1)[0] for file in os.listdir(ks2013_data_dir) if os.path.isfile(os.path.join(ks2013_data_dir, file))]
-                eval_ks2013_dataloaders = {ks2013_file_names[idx]: self.config.init_obj(
-                    'eval_ks2013_dataloader',
-                    module_data,
-                    data_path = path, num_replicas = num_replicas, pred_func2ix = self.pred_func2ix, pred2ix = self.pred2ix, encoder_arch_type = self.config['encoder_arch']['type']
-                    )
-                    for idx, path in enumerate(ks2013_data_path)
-                }
-
 
             self.results_dir = os.path.join(
                 self.config['evaluator']['results_dir'],
@@ -253,8 +241,7 @@ class BaseTrainer:
                     eval_relpron_dataloaders,
                     eval_gs2011_dataloaders,
                     eval_gs2013_dataloaders,
-                    eval_gs2012_dataloaders,
-                    eval_ks2013_dataloaders
+                    eval_gs2012_dataloaders
             ], autoencoder = self.autoencoder, config = self.config, device = self.device)
 
 

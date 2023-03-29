@@ -1,6 +1,6 @@
 {
-    "name": "TCS_f100-n32-e300-d300-p0.5-lgF-PAS-Id-l20-GenCon-avgF-a0-spT-alphaNone-startBeta0.01-endBeta0.01at1-vT-stdNormF-g128-elr0.001-dlr0.001-sfT",
-    "transformed_dir_name": "TCS_f100-lgF-PAS-Gen",
+    "name": "TCS_f0-n32-e300-d300-p0.5-lgF-PAS-Id-l20-GenCon-avgF-a0-spT-alphaNone-startBeta0.01-endBeta0.01at1-vT-stdNormF-g128-elr0.001-dlr0.001-sfT_dummy",
+    "transformed_dir_name": "TCS_f0-lgF-PAS-Gen",
     "sample_only": false,
     "n_gpu": 4,
     "ddp": true,
@@ -50,16 +50,16 @@
     "data_loader": {
         "type": "TrainDataLoader",
         "args": {
-            "data_dir": "data/27092022",
-            "transformed_dir": "data/27092022/transformed/TCS_f100-lgF-PAS-Gen",
+            "data_dir": "data/dummy_data",
+            "transformed_dir": "data/dummy_data/transformed/TCS_f0-lgF-PAS-Gen_dummy",
             "transform_config_file_path": "transform/configs/config.json",
             "batch_size": 1,
             "shuffle": true,
             "num_workers": 0,
             "collate_fn": "PASGenCollator",
             "pin_memory": false,
-            "min_pred_func_freq": 100,
-            "min_content_pred_freq": 100,
+            "min_pred_func_freq": 0,
+            "min_content_pred_freq": 0,
             "filter_min_freq": true
         }
     },
@@ -100,20 +100,10 @@
         "early_stop": 10,
         "tensorboard": true
     },
-    "eval_hyp_dataloader": {
+    "eval_relpron_dataloader": {
         "type": null,
         "args": {
-            "hyp_data_dir": "eval_data/TCS_f100-lgF-PAS-Gen/hyp",
-            "batch_size": 1,
-            "shuffle": false,
-            "num_workers": 0,
-            "pin_memory": false
-        }
-    },
-    "eval_relpron_dataloader": {
-        "type": "EvalRelpronDataLoader",
-        "args": {
-            "relpron_data_dir": "eval_data/TCS_f100-lgF-PAS-Gen/relpron",
+            "relpron_data_dir": null,
             "split": [
                 "dev",
                 "test"
@@ -123,43 +113,43 @@
             "shuffle": false,
             "num_workers": 0,
             "pin_memory": false,
-            "collate_fn": "EvalRelpronPASCollator"
+            "collate_fn": null
         }
     },
     "eval_gs2011_dataloader": {
-        "type": "EvalGS2011DataLoader",
+        "type": null,
         "args": {
-            "data_dir": "eval_data/TCS_f100-lgF-PAS-Gen/gs2011",
+            "data_dir": null,
             "batch_size": 1,
             "shuffle": false,
             "num_workers": 0,
             "pin_memory": false,
-            "collate_fn": "EvalGS2011PASCollator"
+            "collate_fn": null
         }
     },
     "eval_gs2013_dataloader": {
-        "type": "EvalGS2011DataLoader",
+        "type": null,
         "args": {
-            "data_dir": "eval_data/TCS_f100-lgF-PAS-Gen/gs2013",
+            "data_dir": null,
             "batch_size": 1,
             "shuffle": false,
             "num_workers": 0,
             "pin_memory": false,
-            "collate_fn": "EvalGS2011PASCollator"
+            "collate_fn": null
         }
     },
     "eval_gs2012_dataloader": {
-        "type": "EvalGS2011DataLoader",
+        "type": null,
         "args": {
-            "data_dir": "eval_data/TCS_f100-lgF-PAS-Gen/gs2012",
+            "data_dir": null,
             "batch_size": 1,
             "shuffle": false,
             "num_workers": 0,
             "pin_memory": false,
-            "collate_fn": "EvalGS2011PASCollator"
+            "collate_fn": null
         }
     },
     "evaluator": {
-        "results_dir": "results/"
+        "results_dir": null
     }
 }

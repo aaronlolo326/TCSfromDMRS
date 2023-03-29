@@ -1,7 +1,220 @@
 {
   "0": {
-    "snt": "Lions are cats, animals and mammals",
+    "snt": "If bears and sad cats eat quickly or slowly, birds run.",
     "id": 0,
+    "dmrs": {
+      "directed": true,
+      "multigraph": true,
+      "graph": {
+        "index": 10014,
+        "top": 10000
+      },
+      "nodes": [
+        {
+          "cvarsort": "e",
+          "predicate": "_if_x_then",
+          "lemma": "if",
+          "pos": "x",
+          "id": 10000
+        },
+        {
+          "predicate": "udef_q",
+          "lemma": "udef",
+          "pos": "q",
+          "id": 10001
+        },
+        {
+          "predicate": "udef_q",
+          "lemma": "udef",
+          "pos": "q",
+          "id": 10002
+        },
+        {
+          "cvarsort": "x",
+          "predicate": "_bear_n_1",
+          "lemma": "bear",
+          "pos": "n",
+          "id": 10003
+        },
+        {
+          "cvarsort": "x",
+          "predicate": "_and_c",
+          "lemma": "and",
+          "pos": "c",
+          "id": 10004
+        },
+        {
+          "predicate": "udef_q",
+          "lemma": "udef",
+          "pos": "q",
+          "id": 10005
+        },
+        {
+          "cvarsort": "e",
+          "predicate": "_sad_a_1",
+          "lemma": "sad",
+          "pos": "a",
+          "id": 10006
+        },
+        {
+          "cvarsort": "x",
+          "predicate": "_cat_n_1",
+          "lemma": "cat",
+          "pos": "n",
+          "id": 10007
+        },
+        {
+          "cvarsort": "e",
+          "predicate": "_eat_v_1",
+          "lemma": "eat",
+          "pos": "v",
+          "id": 10008
+        },
+        {
+          "cvarsort": "e",
+          "predicate": "_quick_a_1",
+          "lemma": "quick",
+          "pos": "a",
+          "id": 10009
+        },
+        {
+          "cvarsort": "e",
+          "predicate": "_or_c",
+          "lemma": "or",
+          "pos": "c",
+          "id": 10010
+        },
+        {
+          "cvarsort": "e",
+          "predicate": "_slow_a_1",
+          "lemma": "slow",
+          "pos": "a",
+          "id": 10011
+        },
+        {
+          "predicate": "udef_q",
+          "lemma": "udef",
+          "pos": "q",
+          "id": 10012
+        },
+        {
+          "cvarsort": "x",
+          "predicate": "_bird_n_1",
+          "lemma": "bird",
+          "pos": "n",
+          "id": 10013
+        },
+        {
+          "cvarsort": "e",
+          "predicate": "_run_v_1",
+          "lemma": "run",
+          "pos": "v",
+          "id": 10014
+        }
+      ],
+      "links": [
+        {
+          "label": "ARG1/H",
+          "source": 10000,
+          "target": 10014,
+          "key": 0
+        },
+        {
+          "label": "ARG2/H",
+          "source": 10000,
+          "target": 10008,
+          "key": 0
+        },
+        {
+          "label": "RSTR/H",
+          "source": 10001,
+          "target": 10004,
+          "key": 0
+        },
+        {
+          "label": "RSTR/H",
+          "source": 10002,
+          "target": 10003,
+          "key": 0
+        },
+        {
+          "label": "L-INDEX/NEQ",
+          "source": 10004,
+          "target": 10003,
+          "key": 0
+        },
+        {
+          "label": "R-INDEX/NEQ",
+          "source": 10004,
+          "target": 10007,
+          "key": 0
+        },
+        {
+          "label": "RSTR/H",
+          "source": 10005,
+          "target": 10007,
+          "key": 0
+        },
+        {
+          "label": "ARG1/EQ",
+          "source": 10006,
+          "target": 10007,
+          "key": 0
+        },
+        {
+          "label": "ARG1/NEQ",
+          "source": 10008,
+          "target": 10004,
+          "key": 0
+        },
+        {
+          "label": "ARG1/NEQ",
+          "source": 10009,
+          "target": 10008,
+          "key": 0
+        },
+        {
+          "label": "L-HNDL/HEQ",
+          "source": 10010,
+          "target": 10009,
+          "key": 0
+        },
+        {
+          "label": "R-HNDL/HEQ",
+          "source": 10010,
+          "target": 10011,
+          "key": 0
+        },
+        {
+          "label": "MOD/EQ",
+          "source": 10010,
+          "target": 10008,
+          "key": 0
+        },
+        {
+          "label": "ARG1/NEQ",
+          "source": 10011,
+          "target": 10008,
+          "key": 0
+        },
+        {
+          "label": "RSTR/H",
+          "source": 10012,
+          "target": 10013,
+          "key": 0
+        },
+        {
+          "label": "ARG1/NEQ",
+          "source": 10014,
+          "target": 10013,
+          "key": 0
+        }
+      ]
+    }
+  },
+  "1": {
+    "snt": "Lions are cats, animals and mammals",
+    "id": 1,
     "dmrs": {
       "directed": true,
       "multigraph": true,

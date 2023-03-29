@@ -478,7 +478,8 @@ def _prepare_train_worker(args):
                 if discarded:
                     prepared["err2cnt"][transformed["discarded_reason"]] += 1
                     if transformed["discarded_reason"] == "not all pred_func_nodes_ctxt_args have same length":
-                        print (1, transformed)
+                        pass
+                        # print (1, transformed)
                     # if "Recursion" in transformed["discarded_reason"]:
                     # print (snt_id, snt_id, transformed["discarded_reason"])
                 else:
@@ -672,10 +673,12 @@ def write_balanced(args):
     return True
 
 def load_transformed(transformed_path):
-    print ("loading {}".format(transformed_path))
-    with open(transformed_path) as f:
-        transformed = json.load(f)
-    print ("Finished loading {}".format(transformed_path))
+    transformed = []
+    if os.path.exists(transformed_path):
+        print ("loading {}".format(transformed_path))
+        with open(transformed_path) as f:
+            transformed = json.load(f)
+        print ("Finished loading {}".format(transformed_path))
     return transformed
 
 def balance_splits(transformed_dir, as_json):
@@ -689,13 +692,14 @@ def balance_splits(transformed_dir, as_json):
         workers_args = [transformed_paths[worker_id] for worker_id in range(NUM_WORKERS)]
         with Pool(NUM_WORKERS) as p:
             for idx, transformed in enumerate(p.imap(load_transformed, workers_args)):
-                print ("Extending {}".format(idx))
-                transformed_list.extend(transformed)
-                del transformed
+                if transformed != []:
+                    print ("Extending {}".format(idx))
+                    transformed_list.extend(transformed)
+                    del transformed
 
         num_instance = len(transformed_list)
 
-        num_instance_per_file = int(num_instance/NUM_WORKERS)
+        num_instance_per_file = max(1, int(num_instance/NUM_WORKERS))
         print ("total num_instance", num_instance)
         print ("num_instance_per_file", num_instance_per_file)
         for idx, chunk in enumerate(chunks(transformed_list, num_instance_per_file)):
@@ -906,7 +910,7 @@ if __name__ == '__main__':
                       help='prepare specific query snt_id only')
     parser.add_argument('-j', '--as_json', default="yes", type=str,
                       help='save as json file')
-    parser.add_argument('-e', '--relpron_dir', default="RELPRON", type=str,
+    parser.add_argument('-e', '--relpron_dir', default="eval_data_sets/RELPRON", type=str,
                       help='dir to RELPRON data')
     args = parser.parse_args()
     # custom cli options to modify configuration from default values given in json file.

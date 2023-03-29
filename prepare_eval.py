@@ -29,7 +29,8 @@ def _predarg2ix(pred, arg, predarg2ix):
             oovs.add(pred + "@" + arg)
             return predarg2ix[pred + "@" + "NonARG"]
         else:
-            print (pred, arg)
+            pass
+            # print (pred, arg)
     else:
         vs.add(pred + "@" + arg)
         return predarg2ix[pred + "@" + arg]
@@ -324,16 +325,14 @@ def prepare_relpron(relpron_dir, encoder_arch_type, svo, pos2lemma2pred2cnt, pre
                         if p + "@NonARG" in predarg2ix:
                             b = _predarg2ix(p, "NonARG", predarg2ix)
                         if b == None:
-                            print (p, a, b)
+                            pass
+                            # print (p, a, b)
                         # input ()
                         continue
                 pred_func_nodes_ctxt_predargs_list.append(pred_func_nodes_ctxt_predargs)
                 pred_func_nodes_ctxt_args_list.append(pred_func_nodes_ctxt_args)
                 logic_expr_list.append(pred_funcs)
                 vars_unzipped_list.append(vars_unzipped)
-        
-        pprint (oov)
-        print (len(oov))
     
         relpron_splits[split] = {
             "pred_func_nodes_ctxt_predargs_list": pred_func_nodes_ctxt_predargs_list,
@@ -614,7 +613,8 @@ def prepare_gs2012(gs_dir, encoder_arch_type, pos2lemma2pred2cnt, pred_func2cnt,
             if adj_obj in pos2lemma2pred2cnt['a'] and adj_obj != "second":
                 adj_obj_pred = pos2lemma2pred2cnt['a'][adj_obj].most_common()[0][0]
         if not all([verb_pred, sbj_pred, obj_pred, landmark_pred, adj_sbj_pred, adj_obj_pred]) and adj_obj != "second":
-            print (verb, verb_pred, sbj, sbj_pred, obj, obj_pred, landmark, landmark_pred, adj_sbj, adj_sbj_pred, adj_obj, adj_obj_pred)
+            pass
+            # print (verb, verb_pred, sbj, sbj_pred, obj, obj_pred, landmark, landmark_pred, adj_sbj, adj_sbj_pred, adj_obj, adj_obj_pred)
             continue
         else:
             # ensure arg0 of nouns and arg0,1,2 or verbs are not OOV
@@ -738,7 +738,7 @@ def prepare_gs2012(gs_dir, encoder_arch_type, pos2lemma2pred2cnt, pred_func2cnt,
 
             else:
                 pass
-                print (verb_pred, sbj_pred, obj_pred, landmark_pred, adj_sbj_pred, adj_obj_pred, arg0s_exist, arg12_exist)
+                # print (verb_pred, sbj_pred, obj_pred, landmark_pred, adj_sbj_pred, adj_obj_pred, arg0s_exist, arg12_exist)
             
     print ("after filtering OOV: {} has {} ASVAO instances".format(name, len(gs_asvao_ix2landmark2scores)))
 
@@ -987,23 +987,23 @@ def main(config,
         pred_func2cnt[pred_func] = pred_func_ix2cnt[ix]
 
     sample_only = config["sample_only"]
-    eval_data_sets_dirs = [None, "RELPRON", "GS2011", "GS2013", "GS2012", "bless-gems", "Weeds2014"]
-    hyp_dir, relpron_dir, gs2011_dir, gs2013_dir, gs2012_dir, bless_dir, weeds2014_dir = [
+    eval_data_sets_dirs = ["RELPRON", "GS2011", "GS2013", "GS2012", "bless-gems", "Weeds2014"]
+    relpron_dir, gs2011_dir, gs2013_dir, gs2012_dir, bless_dir, weeds2014_dir = [
         os.path.join(eval_data_sets_dir, dir) if dir != None else None for dir in eval_data_sets_dirs 
     ]
     # hyp
-    if hyp_dir:
-        config_eval_hyp_dir = os.path.join(config_eval_dir, "hyp")
-        os.makedirs(config_eval_hyp_dir, exist_ok = True)
-        min_freqs = [0, 5000, 50000]
-        for trasitive_num in [1,2]:
-            hyp_file = "hypernyms_wn_{}.txt".format(trasitive_num)
-            for freq in min_freqs:
-                hyp_pred_pairs_wn = prepare_hyp(config, hyp_dir, hyp_file, pos2lemma2pred2cnt, freq)
-                if hyp_pred_pairs_wn:
-                    hyp_pred_pairs_path = os.path.join(config_eval_hyp_dir, "hyp_pred_pairs_t{}_f{}.json".format(trasitive_num, freq))
-                    with open(hyp_pred_pairs_path, "w") as f:
-                        json.dump(hyp_pred_pairs_wn, f, indent = 4)
+    # if hyp_dir:
+    #     config_eval_hyp_dir = os.path.join(config_eval_dir, "hyp")
+    #     os.makedirs(config_eval_hyp_dir, exist_ok = True)
+    #     min_freqs = [0, 5000, 50000]
+    #     for trasitive_num in [1,2]:
+    #         hyp_file = "hypernyms_wn_{}.txt".format(trasitive_num)
+    #         for freq in min_freqs:
+    #             hyp_pred_pairs_wn = prepare_hyp(config, hyp_dir, hyp_file, pos2lemma2pred2cnt, freq)
+    #             if hyp_pred_pairs_wn:
+    #                 hyp_pred_pairs_path = os.path.join(config_eval_hyp_dir, "hyp_pred_pairs_t{}_f{}.json".format(trasitive_num, freq))
+    #                 with open(hyp_pred_pairs_path, "w") as f:
+    #                     json.dump(hyp_pred_pairs_wn, f, indent = 4)
     # relpron
     if relpron_dir:
         config_eval_relpron_dir = os.path.join(config_eval_dir, "relpron")
@@ -1121,22 +1121,22 @@ def main(config,
     #             with open(bless_mapped_path, "w") as f:
     #                 json.dump(mapped, f, indent = 4)
 
-    if weeds2014_dir:
-        config_eval_weeds2014_dir = os.path.join(config_eval_dir, "weeds2014")
-        config_eval_weeds2014_data_dir = os.path.join(config_eval_weeds2014_dir, "data")
-        config_eval_weeds2014_info_dir = os.path.join(config_eval_weeds2014_dir, "info")
-        os.makedirs(config_eval_weeds2014_data_dir, exist_ok = True)
-        os.makedirs(config_eval_weeds2014_info_dir, exist_ok = True)
-        min_pred_func_freqs = [0]
-        for freq in min_pred_func_freqs:
-            weeds2014_eval, mapped = prepare_weeds2014(weeds2014_dir, bless_dir, encoder_arch_type, pos2lemma2pred2cnt, pred_func2cnt, pred2ix, content_predarg2ix, pred_func2ix, freq, sample_only)
-            if weeds2014_eval:
-                weeds2014_eval_path = os.path.join(config_eval_weeds2014_data_dir, "weeds2014_f{}.json".format(freq))
-                with open(weeds2014_eval_path, "w") as f:
-                    json.dump(weeds2014_eval, f, indent = 4)
-                weeds2014_mapped_path = os.path.join(config_eval_weeds2014_info_dir, "weeds2014_f{}_mapped.json".format(freq))
-                with open(weeds2014_mapped_path, "w") as f:
-                    json.dump(mapped, f, indent = 4)
+    # if weeds2014_dir:
+    #     config_eval_weeds2014_dir = os.path.join(config_eval_dir, "weeds2014")
+    #     config_eval_weeds2014_data_dir = os.path.join(config_eval_weeds2014_dir, "data")
+    #     config_eval_weeds2014_info_dir = os.path.join(config_eval_weeds2014_dir, "info")
+    #     os.makedirs(config_eval_weeds2014_data_dir, exist_ok = True)
+    #     os.makedirs(config_eval_weeds2014_info_dir, exist_ok = True)
+    #     min_pred_func_freqs = [0]
+    #     for freq in min_pred_func_freqs:
+    #         weeds2014_eval, mapped = prepare_weeds2014(weeds2014_dir, bless_dir, encoder_arch_type, pos2lemma2pred2cnt, pred_func2cnt, pred2ix, content_predarg2ix, pred_func2ix, freq, sample_only)
+    #         if weeds2014_eval:
+    #             weeds2014_eval_path = os.path.join(config_eval_weeds2014_data_dir, "weeds2014_f{}.json".format(freq))
+    #             with open(weeds2014_eval_path, "w") as f:
+    #                 json.dump(weeds2014_eval, f, indent = 4)
+    #             weeds2014_mapped_path = os.path.join(config_eval_weeds2014_info_dir, "weeds2014_f{}_mapped.json".format(freq))
+    #             with open(weeds2014_mapped_path, "w") as f:
+    #                 json.dump(mapped, f, indent = 4)
 
     with open("vs.txt", "w") as f:
         json.dump(list(vs), f, indent = 4)
