@@ -1,6 +1,6 @@
 {
     "name": "TCS_f0-n32-e300-d300-p0.5-lgF-PAS-Id-l20-GenCon-avgF-a0-spT-alphaNone-startBeta0.01-endBeta0.01at1-vT-stdNormF-g128-elr0.001-dlr0.001-sfT_sample",
-    "transformed_dir_name": "TCS_f0-lgF-PAS-Gen",
+    "transformed_dir_name": "TCS_f0-lgF-PAS-Gen_sample",
     "sample_only": true,
     "n_gpu": 4,
     "ddp": true,
