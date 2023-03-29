@@ -1,9 +1,7 @@
 import argparse
 import collections
-from json import decoder
 import datetime
 import torch
-
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
@@ -24,39 +22,93 @@ except NameError:
 
 from pprint import pprint
 import os
-from collections import Counter, defaultdict
-from itertools import chain
+from collections import defaultdict
+import copy
 
-# fix random seeds for reproducibility
-SEED = 123
-torch.manual_seed(SEED)
-torch.use_deterministic_algorithms(True)
+# custom_seed = 29
+torch.use_deterministic_algorithms(mode = True)
+torch.autograd.set_detect_anomaly(False) # False
 
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 torch.set_default_dtype(torch.float64)
-np.random.seed(SEED)
 
-def setup(rank, world_size, cpu):
+
+def setup(rank, world_size, device, sparse_sem_funcs):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
     os.environ['TORCH_SHOW_CPP_STACKTRACES'] = '1'
-    if cpu:
+    if device == 'cpu' or sparse_sem_funcs:
         backend = "gloo" 
     else:
-        backend = "gloo"  #nccl
+        backend = "nccl"  #nccl
     # initialize the process group
     # If you plan on using this module with a nccl backend or a gloo backend (that uses Infiniband),
     # together with a DataLoader that uses multiple workers, please change the multiprocessing start method to forkserver (Python 3 only) or spawn.
     # Unfortunately Gloo (that uses Infiniband) and NCCL2 are not fork safe, and you will likely experience deadlocks if you don’t change this setting.
-    dist.init_process_group(backend, rank = rank, world_size = world_size, timeout=datetime.timedelta(seconds=500))
+    dist.init_process_group(backend, rank = rank, world_size = world_size, timeout=datetime.timedelta(seconds = 1000))
 
 def cleanup():
     dist.destroy_process_group()
 
-def get_trainer_args(config):
+def get_indices(content_pred2cnt, pred2ix, pred_func2ix, MIN_CONTENT_PRED_FREQ):
+    max_pred_ix = max(pred2ix.values())
+    max_pred_func_ix = max(pred_func2ix.values())
+    pred2cnt = defaultdict()
+    pred_func_ix2arg_num = [-1 for i in range(max_pred_func_ix + 1)]
+    # pred_func_ix2cnt = [-1 for i in range(max_pred_func_ix + 1)]
+    # pred_ix2non_arg0_num2pred_func_ix = [[-1, -1, -1, -1] for i in range(max_pred_ix + 1)]
+    # pred_ix2arg0_pred_func_ix = [[-1] for i in range(max_pred_ix + 1)]
+    # pred_ix2non_arg0_num2cnt = [[0, 0, 0, 0] for i in range(max_pred_ix + 1)]
+
+    for pred, pred_ix in pred2ix.items():
+        # pred2cnt
+        if pred2ix[pred] in content_pred2cnt:
+            pred2cnt[pred2ix[pred]] = content_pred2cnt[pred2ix[pred]]
+        else:
+            pred2cnt[pred2ix[pred]] = MIN_CONTENT_PRED_FREQ
+    
+    pred_ix2arg_num2pred_func_ix = [[-1, -1, -1, -1, -1] for i in range(max_pred_ix + 1)]
+    for pred_func, pred_func_ix in pred_func2ix.items():
+        pred, arg = pred_func.rsplit("@", 1)
+        arg_num = int(arg[-1])
+        pred_ix2arg_num2pred_func_ix[pred2ix[pred]][arg_num] = pred_func_ix
+        pred_func_ix2arg_num[pred_func_ix] = arg_num
+    pred_func_ix2arg_num = torch.tensor(pred_func_ix2arg_num)
+    pred_ix2arg_num2pred_func_ix = torch.tensor(pred_ix2arg_num2pred_func_ix)
+
+    pred_ix2arg_num_sum = [0 for i in range(max_pred_ix + 1)]
+    for pred_ix, arg_num2pred_func_ix in enumerate(pred_ix2arg_num2pred_func_ix):
+        for arg_num, pred_func_ix in enumerate(arg_num2pred_func_ix):
+            if pred_func_ix != -1:
+                pred_ix2arg_num_sum[pred_ix] += 2 ** arg_num
+
+    arg_num_sum_set = set(pred_ix2arg_num_sum)
+    arg_num_sum2subset = defaultdict(set)
+    arg_num_sum2subset_new = defaultdict(set)
+    arg_num_sum2add = defaultdict(list)
+    for i in [1,2,4,8,16]:
+        arg_num_sum2subset_new[i] = set([i])
+        arg_num_sum2add[i] = [j for j in [1,2,4,8,16] if j != i]
+
+    while arg_num_sum2subset_new != arg_num_sum2subset:
+        arg_num_sum2subset = copy.deepcopy(arg_num_sum2subset_new)
+        for arg_num_sum in arg_num_sum2subset:
+            arg_num_sum2subset_new[arg_num_sum].add(arg_num_sum)
+            for add in arg_num_sum2add[arg_num_sum]:
+                arg_num_sum2subset_new[arg_num_sum + add] = arg_num_sum2subset_new[arg_num_sum + add].union(arg_num_sum2subset_new[arg_num_sum])
+                arg_num_sum2add[arg_num_sum + add] = [a for a in arg_num_sum2add[arg_num_sum] if a != add]
+
+    arg_num_sum2preds_ix = defaultdict(list)
+    for pred_ix, arg_num_sum in enumerate(pred_ix2arg_num_sum):
+        for sub_arg_num_sum in arg_num_sum2subset[arg_num_sum]:
+            arg_num_sum2preds_ix[sub_arg_num_sum].append(pred_ix)
+
+    return pred2cnt, pred_ix2arg_num2pred_func_ix, arg_num_sum2preds_ix, pred_func_ix2arg_num
+
+def get_trainer_args(config, train = True):
 
     logger = config.get_logger('train')
 
@@ -69,63 +121,58 @@ def get_trainer_args(config):
 
     transformed_dir  = config["data_loader"]["args"]["transformed_dir"]
     transformed_info_dir = os.path.join(transformed_dir, "info")
-    # log_dir = config.log_dir
-    # pred_func2cnt_file_path = os.path.join(transformed_info_dir, "pred_func2cnt.txt")
-    # content_pred2cnt_file_path = os.path.join(transformed_info_dir, "content_pred2cnt.txt")
-    # pred2ix_file_path = os.path.join(transformed_info_dir, "pred2ix.txt")
-    # pred_func2ix_file_path = os.path.join(transformed_info_dir, "pred_func2ix.txt")
 
-    pred_func2cnt, content_pred2cnt, pred2ix, pred_func2ix = get_transformed_info(transformed_info_dir)
+    pred_func2cnt, content_pred2cnt, pred2ix, content_predarg2ix, pred_func2ix = get_transformed_info(transformed_info_dir)
 
     sorted_pred_func2ix = sorted(pred_func2ix.items(), key = lambda x: x[1])
     pred_funcs = []
     for pred_func, ix in sorted_pred_func2ix:
         pred_funcs.append(pred_func)
 
+    # if use generative model loss, we need indices:
+    if not config['decoder_arch']['args']['use_truth'] and train:
+        pred2cnt, pred_ix2arg_num2pred_func_ix, arg_num_sum2preds_ix, pred_func_ix2arg_num = get_indices(content_pred2cnt, pred2ix, pred_func2ix, MIN_CONTENT_PRED_FREQ)
+
     print ("Initializing encoder ...")
     # content_preds = set(content_pred2cnt)
-    num_embs = len(pred2ix)
+    if config['encoder_arch']['type'] == 'MyEncoder':
+        num_embs = len(pred2ix)
+    elif config['encoder_arch']['type'] == 'PASEncoder':
+        num_embs = len(content_predarg2ix)
 
     encoder = config.init_obj('encoder_arch', module_arch, num_embs = num_embs)
+    for p in encoder.parameters():
+        p.register_hook(lambda grad: torch.clamp(grad, -1, 1))
     # logger.info(decoder)
 
-    print ("Initializing semantic functions ...")
-    sem_funcs = []
-    for pred_func in pred_funcs:
-        if pred_func.endswith("ARG0"):
-            sem_func = config.init_obj('one_place_sem_func', module_arch)
-        else:
-            sem_func = config.init_obj('two_place_sem_func', module_arch)
-        sem_funcs.append(sem_func)
-    
     print ("Initializing decoder ...")
-    decoder = config.init_obj('decoder_arch', module_arch, sem_funcs = sem_funcs, pred_func2cnt = pred_func2cnt, pred_funcs = pred_funcs) 
+    if not config['decoder_arch']['args']['use_truth']:
+        if train:
+            decoder = config.init_obj('decoder_arch', module_arch, num_sem_funcs = len(pred_funcs), train = train,
+                pred2cnt = pred2cnt, pred_ix2arg_num2pred_func_ix = pred_ix2arg_num2pred_func_ix,
+                arg_num_sum2preds_ix = arg_num_sum2preds_ix, pred_func_ix2arg_num = pred_func_ix2arg_num
+            )
+        else:
+            decoder = config.init_obj('decoder_arch', module_arch, num_sem_funcs = len(pred_funcs), train = train
+            )
+    else:
+        decoder = config.init_obj('decoder_arch', module_arch, num_sem_funcs = len(pred_funcs), pred_func2cnt = pred_func2cnt, pred_funcs = pred_funcs) 
+    if config['decoder_arch']['args']['sparse_sem_funcs']:
+        pass
+    else:
+        for p in decoder.parameters():
+            p.register_hook(lambda grad: torch.clamp(grad, -1, 1))
 
-    # if len(device_ids) > 1:
-    #     decoder = torch.nn.DataParallel(decoder, device_ids=device_ids)
-        
-    # print (torch.cuda.list_gpu_processes(device = device))
-    # print (torch.cuda.memory_summary(device = device))
+    # count num_params
+    num_params = sum(p.numel() for p in encoder.parameters() if p.requires_grad)
+    print ("num_params of encoder (some are dummy for arg0 sem_funcs):", num_params)
+    num_params = sum(p.numel() for p in decoder.parameters() if p.requires_grad)
+    print ("num_params of decoder (some are dummy for arg0 sem_funcs):", num_params)
 
-    # print (torch.cuda.list_gpu_processes(device=None))
-    # print (torch.cuda.memory_summary(device=None))
 
-    param_size = 0
-    buffer_size = 0
-    for sem_func_ix in range(len(sem_funcs)):
-        for param in sem_funcs[sem_func_ix].parameters():
-            # param.requires_grad = False
-            param_size += param.nelement() * param.element_size()
-        for buffer in sem_funcs[sem_func_ix].buffers():
-            buffer_size += buffer.nelement() * buffer.element_size()
-
-    size_all_mb = (param_size + buffer_size) / 1024**2
-    print ('#embs in encoder: {}'.format(num_embs))
-    print ('#sem_funcs: {}'.format(len(sem_funcs)))
-    print('agg. sem_funcs size: {:.3f}MB; param: {}MB; buffer: {}MB'.format(size_all_mb, param_size/ 1024**2, buffer_size/ 1024**2))
 
     # get function handles of loss and metrics
-    criterion = getattr(module_loss, config['loss'])
+    # criterion = getattr(module_loss, config['loss'])
     criterion = None
     metric_ftns = [getattr(module_metric, met) for met in config['metrics']]
 
@@ -160,51 +207,55 @@ def get_trainer_args(config):
 
 def ddp_trainer(rank, ddp_args):
 
-    world_size, ddp, cpu, config = ddp_args
-    print(f"Running basic DDP example on rank {rank}.")
-    setup(rank, world_size, cpu)
+    world_size, ddp, device, config = ddp_args
+    print(f"Running DDP on rank {rank}.")
 
-    if cpu:
-        rank = 'cpu'
+    sparse_sem_funcs = config['decoder_arch']['args']['sparse_sem_funcs']
+    setup(rank, world_size, device, sparse_sem_funcs)
+
     trainer_args = get_trainer_args(config)
-    trainer = Trainer(world_size = world_size, device = rank, ddp = ddp, cpu = cpu, **trainer_args)
-    trainer.train(rank)
+    trainer = Trainer(world_size = world_size, device = device, rank = rank, ddp = ddp, **trainer_args)
+    trainer.train()
 
     cleanup()
 
 
-def main(config):
+def main(config, seed):
 
+    # fix random seeds for reproducibility
+    torch.manual_seed(seed)
+    np.random.seed(seed)
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(config['n_gpu'])
     # device, device_ids = None, []
     ddp = config['ddp']
-    cpu = False
+    device = None
     world_size = None
     if device_ids == []:
+        device = 'cpu'
         num_thread = torch.get_num_threads()
         # torch.set_num_threads(int(num_thread))
         print ("using {} with {} threads".format(device, num_thread))
-        cpu = True
-        world_size = int(num_thread)
+        world_size = min(int(num_thread), 2)
     else:
+        device = 'cuda:0'
         print ("using {} with device_ids: {}".format(device, device_ids))
         if len(device_ids) > 1:
             ddp = True
-            world_size = len(device_ids)
+            world_size = min(len(device_ids), 12)
         else:
             ddp = False
 
-    if ddp:
+    if ddp and world_size > 1:
         mp.spawn(ddp_trainer,
-            args = ((world_size, ddp, cpu, config),),
+            args = ((world_size, ddp, device, config),),
             nprocs = world_size,
             join = True
         )
     else:
         trainer_args = get_trainer_args(config)
-        trainer = Trainer(world_size = world_size, device = device, ddp = ddp, cpu = cpu, **trainer_args)
-        trainer.train(-1)
+        trainer = Trainer(world_size = world_size, device = device, rank = -1, ddp = ddp, **trainer_args)
+        trainer.train()
 
 
 if __name__ == '__main__':
@@ -215,12 +266,11 @@ if __name__ == '__main__':
                       help='path to latest checkpoint (default: None)')
     parser.add_argument('-d', '--device', default=None, type=str,
                       help='indices of GPUs to enable (default: all)')
-    args = parser.parse_args()
     # custom cli options to modify configuration from default values given in json file.
     CustomArgs = collections.namedtuple('CustomArgs', 'flags type target')
     options = [
-        CustomArgs(['--lr', '--learning_rate'], type=float, target='optimizer;args;lr'),
-        CustomArgs(['--bs', '--batch_size'], type=int, target='data_loader;args;batch_size')
+        CustomArgs(['-s', '--seed'], type=int, target='seed')
     ]
     config = ConfigParser.from_args(parser, options)
-    main(config)
+    args = parser.parse_args()
+    main(config, args.seed)

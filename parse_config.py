@@ -24,8 +24,10 @@ class ConfigParser:
 
         # set save_dir where trained model and log will be saved.
         save_dir = Path(self.config['trainer']['save_dir'])
-
-        exper_name = self.config['name']
+        if 'seed' in self.config:
+            exper_name = self.config['name'] + "-seed{}".format(self.config['seed'])
+        else:
+            exper_name = self.config['name']
         if run_id is None: # use timestamp as default run-id
             run_id = datetime.now().strftime(r'%m%d_%H%M%S')
         self._save_dir = save_dir / 'models' / exper_name #

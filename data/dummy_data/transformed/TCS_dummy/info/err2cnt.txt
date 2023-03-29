@@ -1,2 +1,1 @@
-no logic expr	1
 too few pred func node/content preds	1

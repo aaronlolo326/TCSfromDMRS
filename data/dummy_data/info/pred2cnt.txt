@@ -1,6 +1,8 @@
-udef_q	3
-_be_v_id	2
-_cat_n_1	2
-pron	1
-pronoun_q	1
-_dog_n_1	1
+udef_q	6
+_lion_n_1	1
+_be_v_id	1
+_cat_n_1	1
+implicit_conj	1
+_animal_n_1	1
+_and_c	1
+_mammal_n_1	1

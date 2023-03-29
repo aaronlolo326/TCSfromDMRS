@@ -12,7 +12,6 @@
         "gen": [
             "pron",
             "generic_entity",
-            "generic_entity",
             "thing",
             "person",
             "place_n",
@@ -22,6 +21,10 @@
         "carg": [
             "season",
             "holiday"
+        ],
+        "keep": [
+            "generic_entity",
+            "person"
         ]
     },
     "neg_quantifier": [
@@ -856,12 +859,5 @@
         "_there_a_1"
     ],
     "ignore_scopal_adv": true,
-    "ignore_modal_verb": true,
-    "transformed_keys": [
-        "node2pred",
-        "pred_func_nodes",
-        "content_preds",
-        "logic_expr",
-        "pred_func_used"
-    ]
+    "ignore_modal_verb": true
 }

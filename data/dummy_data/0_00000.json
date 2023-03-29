@@ -1,6 +1,6 @@
 {
   "0": {
-    "snt": "He is cats.",
+    "snt": "Lions are cats, animals and mammals",
     "id": 0,
     "dmrs": {
       "directed": true,
@@ -11,79 +11,6 @@
       },
       "nodes": [
         {
-          "cvarsort": "x",
-          "predicate": "pron",
-          "lemma": "pron",
-          "pos": "S",
-          "id": 10000
-        },
-        {
-          "predicate": "pronoun_q",
-          "lemma": "pronoun",
-          "pos": "q",
-          "id": 10001
-        },
-        {
-          "cvarsort": "e",
-          "predicate": "_be_v_id",
-          "lemma": "be",
-          "pos": "v",
-          "id": 10002
-        },
-        {
-          "predicate": "udef_q",
-          "lemma": "udef",
-          "pos": "q",
-          "id": 10003
-        },
-        {
-          "cvarsort": "x",
-          "predicate": "_cat_n_1",
-          "lemma": "cat",
-          "pos": "n",
-          "id": 10004
-        }
-      ],
-      "links": [
-        {
-          "label": "RSTR/H",
-          "source": 10001,
-          "target": 10000,
-          "key": 0
-        },
-        {
-          "label": "ARG1/NEQ",
-          "source": 10002,
-          "target": 10000,
-          "key": 0
-        },
-        {
-          "label": "ARG2/NEQ",
-          "source": 10002,
-          "target": 10004,
-          "key": 0
-        },
-        {
-          "label": "RSTR/H",
-          "source": 10003,
-          "target": 10004,
-          "key": 0
-        }
-      ]
-    }
-  },
-  "1": {
-    "snt": "Dogs are cats.",
-    "id": 1,
-    "dmrs": {
-      "directed": true,
-      "multigraph": true,
-      "graph": {
-        "index": 10002,
-        "top": 10002
-      },
-      "nodes": [
-        {
           "predicate": "udef_q",
           "lemma": "udef",
           "pos": "q",
@@ -91,8 +18,8 @@
         },
         {
           "cvarsort": "x",
-          "predicate": "_dog_n_1",
-          "lemma": "dog",
+          "predicate": "_lion_n_1",
+          "lemma": "lion",
           "pos": "n",
           "id": 10001
         },
@@ -110,11 +37,63 @@
           "id": 10003
         },
         {
+          "predicate": "udef_q",
+          "lemma": "udef",
+          "pos": "q",
+          "id": 10004
+        },
+        {
           "cvarsort": "x",
           "predicate": "_cat_n_1",
           "lemma": "cat",
           "pos": "n",
-          "id": 10004
+          "id": 10005
+        },
+        {
+          "predicate": "udef_q",
+          "lemma": "udef",
+          "pos": "q",
+          "id": 10006
+        },
+        {
+          "cvarsort": "x",
+          "predicate": "implicit_conj",
+          "lemma": null,
+          "pos": null,
+          "id": 10007
+        },
+        {
+          "predicate": "udef_q",
+          "lemma": "udef",
+          "pos": "q",
+          "id": 10008
+        },
+        {
+          "cvarsort": "x",
+          "predicate": "_animal_n_1",
+          "lemma": "animal",
+          "pos": "n",
+          "id": 10009
+        },
+        {
+          "cvarsort": "x",
+          "predicate": "_and_c",
+          "lemma": "and",
+          "pos": "c",
+          "id": 10010
+        },
+        {
+          "predicate": "udef_q",
+          "lemma": "udef",
+          "pos": "q",
+          "id": 10011
+        },
+        {
+          "cvarsort": "x",
+          "predicate": "_mammal_n_1",
+          "lemma": "mammal",
+          "pos": "n",
+          "id": 10012
         }
       ],
       "links": [
@@ -133,13 +112,61 @@
         {
           "label": "ARG2/NEQ",
           "source": 10002,
-          "target": 10004,
+          "target": 10007,
           "key": 0
         },
         {
           "label": "RSTR/H",
           "source": 10003,
-          "target": 10004,
+          "target": 10007,
+          "key": 0
+        },
+        {
+          "label": "RSTR/H",
+          "source": 10004,
+          "target": 10005,
+          "key": 0
+        },
+        {
+          "label": "RSTR/H",
+          "source": 10006,
+          "target": 10010,
+          "key": 0
+        },
+        {
+          "label": "L-INDEX/NEQ",
+          "source": 10007,
+          "target": 10005,
+          "key": 0
+        },
+        {
+          "label": "R-INDEX/NEQ",
+          "source": 10007,
+          "target": 10010,
+          "key": 0
+        },
+        {
+          "label": "RSTR/H",
+          "source": 10008,
+          "target": 10009,
+          "key": 0
+        },
+        {
+          "label": "L-INDEX/NEQ",
+          "source": 10010,
+          "target": 10009,
+          "key": 0
+        },
+        {
+          "label": "R-INDEX/NEQ",
+          "source": 10010,
+          "target": 10012,
+          "key": 0
+        },
+        {
+          "label": "RSTR/H",
+          "source": 10011,
+          "target": 10012,
           "key": 0
         }
       ]

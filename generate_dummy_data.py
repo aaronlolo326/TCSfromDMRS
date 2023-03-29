@@ -61,16 +61,16 @@ def normalize_pred(pred, unk2pos):
 text_no_parse = [
     # ['Dogs love cats.', 0],
     # ['Dogs hope to want to eat fish', 0],
+    # ['Happy dogs, cats and lions run.', 2],
     # ['Happy or sad dogs run or swim.', 0],
     # ['Dogs, cats, lions or ducks swim.', 0],
-    # ['Happy dogs, cats and lions run.', 2],
     # ['Dogs run, swim or bark very happily or sadly.', 9],
     # ['Dogs listen, swim, eat or bark very happily or sadly.', 2],
     # ['Big and small dogs run or swim very happily or sadly.', 3],
     # ['Dogs or lions and bears or cats learn, lose and eat.', 0],
-    # ['Dogs can probably not be running very happily.', 0], # neg
+    # ['Dogs can probably not run very happily.', 0], # neg
     # ['No humans could survive with no water or oxygen.', 0],
-    # ['happy dogs and sad cats that run eat no apples and oranges', 0], # prb
+    # ['Happy dogs and sad cats that run eat no apples and oranges', 0], # prb
     # ['large pet dogs with paws which no normal people are afraid of are gentle if dogs are raised properly or not trained.', 0],
     # ['dogs or cats that run or swim eat food', 0],
     # ['If bears and sad cats eat quickly or slowly, birds run.', 0],
@@ -93,9 +93,20 @@ text_no_parse = [
     # ['Do not let nobody not eat no food', 0],
     # ['My mum or I made a sandwich or chicken for breakfast and lunch', 0],
     # ['A cat can either be a house cat, a farm cat, or a feral cat.', 0],
-    # ['Lions can be cats, animals and information about books', 0]
-    ['He is cats.', 0],
-    ['Dogs are cats.', 0]
+    ['Lions are cats, animals and mammals', 0],
+    # ['Dogs know the claim that cats can run.', 0]
+    # ['He is cats.', 0],
+    # ['Dogs are cats.', 0]
+
+
+    # ['Dogs are animals.', 0], 
+    # ['Cats are animals.', 0], 
+    # ['Dogs can run.', 0], 
+    # ['Cats can run.', 0], 
+    # ['Hot dogs are yummy.', 0], 
+    # ['.', 0], 
+    # ['Dogs are animals.', 0], 
+    # ['Dogs are animals.', 0],
 ]
 
 os.makedirs(dummy_data_dir, exist_ok = True)

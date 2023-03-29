@@ -1,0 +1,26 @@
+This archive contains the HeiPLAS data set (Heidelberg Princeton
+Large-Scale Attribute Selection). If you use this data, please cite my
+Ph.D. dissertation [1], which also contains the relevant facts and
+properties of the data.
+
+The data comprises approx. 1600 adjective-noun phrases together with an
+implicit attribute that is invoked in the phrase meaning. The entire set is
+split into a development and a test section (HeiPLAS-dev.txt and
+HeiPLAS-test.txt).
+
+Attribute annotations have been obtained in a semi-automatic procedure,
+based on WordNet glosses and subsequent manual curation. The entire
+procedure is also described in [1]. 
+
+As this data is derived from Princeton WordNet 3.0, its use is subject to
+the WordNet license (which is included in the LICENSE file).
+
+In all questions you might have about the data or its use, please do not hesitate to
+contact me.
+
+Matthias Hartung
+mhartung@cit-ec.uni-bielefeld.de
+
+[1] Hartung, Matthias (2015): Distributional Semantic Models of Attribute
+Meaning in Adjectives and Nouns. Ph.D. Dissertation: Computational
+Linguistics Department, Heidelberg University.

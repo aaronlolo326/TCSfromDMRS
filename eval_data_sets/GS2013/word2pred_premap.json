@@ -1,0 +1,10 @@
+{
+    "sniffing": "_sniff_v_1",
+    "training": "_train_v_1",
+    "say": "_say_v_1",
+    "move": "_move_v_cause",
+    "bear": "_bear_v_1",
+    "papers": "_paper_n_1",
+    "favour": "_favor_n_1",
+    "behaviour": "_behavior_n_1"
+}

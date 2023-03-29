@@ -51,6 +51,7 @@ def get_transformed_info(transformed_info_dir):
     pred_func2cnt_file_path = os.path.join(transformed_info_dir, "pred_func2cnt.txt")
     content_pred2cnt_file_path = os.path.join(transformed_info_dir, "content_pred2cnt.txt")
     pred2ix_file_path = os.path.join(transformed_info_dir, "pred2ix.txt")
+    predarg2ix_file_path = os.path.join(transformed_info_dir, "content_predarg2ix.txt")
     pred_func2ix_file_path = os.path.join(transformed_info_dir, "pred_func2ix.txt")
 
     pred_func2cnt = Counter()
@@ -80,6 +81,17 @@ def get_transformed_info(transformed_info_dir):
             pred2ix[pred] = int(ix)
             line = f.readline()
 
+    predarg2ix = defaultdict()
+    if os.path.isfile(predarg2ix_file_path):
+        with open(predarg2ix_file_path) as f:
+            line = f.readline()
+            while line:
+                ix, predarg = line.strip().split("\t")
+                # if int(cnt) < MIN_PRED_FUNC_FREQ:
+                #     break
+                predarg2ix[predarg] = int(ix)
+                line = f.readline()
+
     pred_func2ix = defaultdict()
     with open(pred_func2ix_file_path) as f:
         line = f.readline()
@@ -89,7 +101,7 @@ def get_transformed_info(transformed_info_dir):
             pred_func2ix[pred_func] = ix
             line = f.readline()
 
-    return pred_func2cnt, content_pred2cnt, pred2ix, pred_func2ix
+    return pred_func2cnt, content_pred2cnt, pred2ix, predarg2ix, pred_func2ix
 
 class MetricTracker:
     def __init__(self, *keys, writer=None):

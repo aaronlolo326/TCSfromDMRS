@@ -2,6 +2,7 @@ import os
 import argparse
 from collections import defaultdict
 import json
+from pickle import FALSE
 
 
 ignore_scopal_adv = True
@@ -13,8 +14,9 @@ abs_pred_func = {
     # 'cpd': ['compound', 'compound_name'],
     # 'and': ['implicit_conj_rel', 'subord_rel'], 
     'neg': ['neg', 'not_x_deg'], #_hardly_x_deg
-    'gen': ['pron', 'generic_entity', 'generic_entity', 'thing','person','place_n','time_n','reason'],
-    'carg': ['season', 'holiday']
+    'gen': ['pron', 'generic_entity', 'thing','person','place_n','time_n','reason'],
+    'carg': ['season', 'holiday'],
+    'keep': ['generic_entity', 'person']
 }
 neg_quantifier = ['_no_q', '_neither_q', '_no+more_q']
 transparent_preds = ['nominalization', 'eventuality']
@@ -47,8 +49,6 @@ modals = [
     "_had+best_v_qmodal",
     "_gotta_v_modal"
 ]
-
-transformed_keys = ["node2pred", "pred_func_nodes", "content_preds", "logic_expr", "pred_func_used"]
 
 transform_config = defaultdict()
 type2pred2args_op = defaultdict(defaultdict)
@@ -84,8 +84,7 @@ def main(logic_pred_anno_path, trsfm_config_path):
         "modals": modals,
         "ignore": ignore,
         "ignore_scopal_adv": ignore_scopal_adv,
-        "ignore_modal_verb": ignore_modal_verb,
-        "transformed_keys": transformed_keys
+        "ignore_modal_verb": ignore_modal_verb
     }
     with open(trsfm_config_path, "w") as f:
         json.dump(transform_config, f, indent = 4)

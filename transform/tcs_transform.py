@@ -109,7 +109,7 @@ class TruthConditions(object):
             to output_size keeping aspect ratio the same.
     """
 
-    def __init__(self, config, to_ix, min_pred_func_freq, min_content_pred_freq, content_pred2cnt, pred_func2cnt, filter_min_freq, pred2ix, pred_func2ix):
+    def __init__(self, config, to_ix, min_pred_func_freq, min_content_pred_freq, content_pred2cnt, pred_func2cnt, filter_min_freq, pred2ix, predarg2ix, pred_func2ix, keep_preds):
 
         self.config = config
         self.filter_min_freq = filter_min_freq
@@ -118,17 +118,64 @@ class TruthConditions(object):
         self.content_pred2cnt = content_pred2cnt
         self.pred_func2cnt = pred_func2cnt
         self.pred2ix = pred2ix
+        self.predarg2ix = predarg2ix
         self.pred_func2ix = pred_func2ix
+        self.keep_preds = keep_preds
+        self.arg2ix = {
+            "NonARG": 0,
+            "ARG0": 1,
+            "ARG1": 2,
+            "ARG2": 3,
+            "ARG3": 4,
+            "ARG4": 5,
+            "ARG1-rvrs": 6,
+            "ARG2-rvrs": 7,
+            "ARG3-rvrs": 8,
+            "ARG4-rvrs": 9
+        }
+        # self.arg2ix = {
+        #     "NonARG": 0,
+        #     "ARG0": 1,
+        #     "ARG1": 6,
+        #     "ARG2": 7,
+        #     "ARG3": 8,
+        #     "ARG4": 9,
+        #     "ARG1-rvrs": 1,
+        #     "ARG2-rvrs": 2,
+        #     "ARG3-rvrs": 3,
+        #     "ARG4-rvrs": 4
+        # }
         self.to_ix = to_ix
 
         self.discarded = False
         self.node2pred = defaultdict()
+        self.node2pred_ix = defaultdict()
         # for decoders
         self.logic_expr = None
         self.pred_func_used = set()
         # for encoder
-        self.content_preds = []
+        self.content_preds = set()
+        self.content_pred_nodes = set()
         self.pred_func_nodes = set()
+        
+        self.node2nodes_whose_arg0 = defaultdict(set)
+        self.pred_func_nodes_ctxt_preds = []
+        self.pred_func_nodes_ctxt_args = []
+        self.pred_func_nodes_ctxt_pred_args = []
+
+        self.num_surf_preds = 0
+
+    def _arg2ix(self, arg):
+        if self.to_ix and self.arg2ix:
+            if arg in self.arg2ix:
+                return self.arg2ix[arg]
+            elif arg in ["MOD", "MOD-rvrs"]:
+                return 0
+            else:
+                print (arg)
+                return 0
+        else:
+            return arg
 
     def _pred2ix(self, pred):
         if self.to_ix and self.pred2ix:
@@ -139,6 +186,20 @@ class TruthConditions(object):
                 return None
         else:
             return pred
+
+    def _predarg2ix(self, pred, arg):
+        predarg = pred + "@" + arg
+        if self.to_ix and self.predarg2ix:
+            if predarg in self.predarg2ix:
+                return self.predarg2ix[predarg]
+            else:
+                predarg_nonarg = pred + "@" + "NonARG"
+                if predarg_nonarg in self.predarg2ix:
+                    return self.predarg2ix[predarg_nonarg]
+                else:
+                    return None
+        else:
+            return predarg
 
     def _pred_func2ix(self, pred_func):
         if self.to_ix and self.pred_func2ix:
@@ -162,20 +223,41 @@ class TruthConditions(object):
             self.discarded = True
         else:
             pass
+
+    def _rename_preds(self):
+        for node, node_prop in self.dmrs_nxDG.nodes(data = True):
+            # for relpron named OOV
+            if node_prop['predicate'] in ['named', 'named_n'] and "named_{}".format(node_prop['carg'].lower()) in self.keep_preds:
+                self.dmrs_nxDG.nodes[node]['predicate'] = "named_{}".format(node_prop['carg'].lower())
         
     def _get_node2pred(self):
         for node, node_prop in self.dmrs_nxDG.nodes(data = True):
             # if not node_prop['predicate'] in self.config['ignore']:
             self.node2pred[node] = node_prop['predicate']
+            if node_prop['predicate'].startswith("_") or node_prop['predicate'].startswith("u_"):
+                self.num_surf_preds += 1
     
     def _get_content_pred(self):
         for node, node_prop in self.dmrs_nxDG.nodes(data = True):
             if 'pos' in node_prop:
+
+                # if self.content_pred2cnt != None:
+                #     if self._is_content_node(node):
+                #         print (self.pred2ix)
+                #         print (self.to_ix)
+                #         print (node_prop['predicate'])
+                #         print (self.pred2ix[node_prop['predicate']])
+                #         print (
+                #             self._pred2ix(node_prop['predicate'])
+                #             )
+                #         input()
+
                 if all([
                     self._is_content_node(node),
-                    self._is_frequent(self._pred2ix(node_prop['predicate']), self.content_pred2cnt, self.min_content_pred_freq)
+                    self._is_frequent(self._pred2ix(node_prop['predicate']), self.content_pred2cnt, self.min_content_pred_freq) or node_prop['predicate'] in self.keep_preds
                 ]):
-                    self.content_preds.append(node_prop['predicate'])
+                    self.content_preds.add(node_prop['predicate'])
+                    self.content_pred_nodes.add(node)
 
     def _get_topmost_scope(self, curr_scope, original_scope):
         # print ("curr_scope:", curr_scope)
@@ -378,7 +460,12 @@ class TruthConditions(object):
         node_prop = self.dmrs_nxDG.nodes[node]
         pred, pred_pos = node_prop['predicate'], node_prop['pos']
         is_content_node = all([
-            pred_pos in self.config["content_pos"] or pred in self.config['abs_pred_func']['carg'],
+            any([
+                pred_pos in self.config["content_pos"],
+                pred in self.config['abs_pred_func']['carg'],
+                pred in self.config['abs_pred_func']['keep'],
+                pred in self.keep_preds
+            ]),
             not any([
                 self._is_logic_pred_of_type(node, LOGIC_PRED_TYPE_X),
                 self._is_logic_pred_of_type(node, LOGIC_PRED_TYPE_H),
@@ -411,7 +498,9 @@ class TruthConditions(object):
                 not pred == "_be_v_id"
             ]),
             # pred in self.config['abs_pred_func']['sem'],
-            pred in self.config['abs_pred_func']['carg']
+            pred in self.config['abs_pred_func']['carg'],
+            pred in self.config['abs_pred_func']['keep'],
+            pred in self.keep_preds
             # pred in self.config['abs_pred_func']['cpd']
             # pred in self.config['abs_pred_func']['neg']
         ])
@@ -429,7 +518,9 @@ class TruthConditions(object):
             ]),
             # pred in self.config['abs_pred_func']['sem'],
             pred in self.config['abs_pred_func']['carg'],
-            pred in self.config['transparent_preds']
+            pred in self.config['abs_pred_func']['keep'],
+            pred in self.config['transparent_preds'],
+            pred in self.keep_preds
             # pred in self.config['abs_pred_func']['neg']
         ])
 
@@ -542,14 +633,8 @@ class TruthConditions(object):
         compose_left, compose_right = False, False
         if left_expr:
             compose_left = True 
-            # if isinstance(left_expr, dict):
-            #     if not self._is_frequent(left_expr['pred_func'], self.pred_func2cnt, self.min_pred_func_freq):
-            #         compose_left = False 
         if right_expr:
             compose_right = True 
-            # if isinstance(right_expr, dict):
-            #     if not self._is_frequent(right_expr['pred_func'], self.pred_func2cnt, self.min_pred_func_freq):
-            #         compose_right = False
 
         if compose_left and compose_right:
             composed_expr = [op, left_expr, right_expr]
@@ -605,11 +690,12 @@ class TruthConditions(object):
         if self._has_pred_func(curr_node):
             curr_pred = self.node2pred[curr_node]
             arg0pred_func_name = self._get_pred_func_name(curr_pred, ARG0)
-            if self._is_frequent(arg0pred_func_name, self.pred_func2cnt, self.min_pred_func_freq):
+            if self._is_frequent(arg0pred_func_name, self.pred_func2cnt, self.min_pred_func_freq) or curr_pred in self.keep_preds:
                 # arg0pred_func = {"pred_func_name": arg0pred_func_name, "args": [curr_node]}
                 arg0pred_func = self._get_pred_func_ix(arg0pred_func_name, [curr_node])
                 self.pred_func_nodes.add(curr_node)
                 self.pred_func_used.add(arg0pred_func_name)
+                self.node2nodes_whose_arg0[curr_node].add(curr_node)
             # also instantiate args of nominals, if any
                 pred_funcs = None
             # if self.dmrs_nxDG.nodes[curr_node]['cvarsort'] == LOGIC_PRED_TYPE_X:
@@ -639,12 +725,12 @@ class TruthConditions(object):
         src, targ, key, lbl = remote_edge
         pred = self.node2pred[src]
         pred_func_name = self._get_pred_func_name(pred, lbl)
+        targ = _get_conj_targ_node(targ, conj2node)
         # arg0pred_func_name = self._get_pred_func_name(pred, ARG0)
         if pred == '_be_v_id' or all([
-            self._is_frequent(pred_func_name, self.pred_func2cnt, self.min_pred_func_freq)#,
+            self._is_frequent(pred_func_name, self.pred_func2cnt, self.min_pred_func_freq) or pred in self.keep_preds#,
             # self._is_frequent(arg0pred_func_name, self.pred_func2cnt, self.min_pred_func_freq)
         ]):
-            targ = _get_conj_targ_node(targ, conj2node)
             if pred == '_be_v_id' and self._has_pred_func(targ):
                 # ignore if it is arg1
                 if self.get_edge_arg_lbl(lbl) == "ARG2":
@@ -658,30 +744,34 @@ class TruthConditions(object):
                             be_arg1_pred = self.node2pred[be_arg1_node]
                             be_arg1_pred_arg0pred_func_name = self._get_pred_func_name(be_arg1_pred, ARG0)
                             if all([
-                                self._is_frequent(be_arg2_pred_arg0pred_func_name, self.pred_func2cnt, self.min_pred_func_freq),
-                                self._is_frequent(be_arg1_pred_arg0pred_func_name, self.pred_func2cnt, self.min_pred_func_freq)
+                                self._is_frequent(be_arg2_pred_arg0pred_func_name, self.pred_func2cnt, self.min_pred_func_freq) or be_arg2_pred in self.keep_preds,
+                                self._is_frequent(be_arg1_pred_arg0pred_func_name, self.pred_func2cnt, self.min_pred_func_freq) or be_arg1_pred in self.keep_preds
                             ]):
                                 pred_func = self._get_pred_func_ix(be_arg2_pred_arg0pred_func_name, [be_arg1_node])
                                 self.pred_func_used.add(be_arg2_pred_arg0pred_func_name)
                                 self.pred_func_nodes.add(be_arg1_node)
+                                self.node2nodes_whose_arg0[be_arg1_node].add(targ)
                                 # if self.snt_id == "1000070100040":
                                 #     print (self.pred_func_nodes, 1)
+            # 1000140000010
             elif self._has_pred_func(targ):
+                # if self.snt_id == "1000140000010" and :
+                #     print (self.be_arg2_node2arg1)
+                #     print (self.be_arg2_node2arg1)
+                #     print (self.be_arg2_node2arg1)
+                # thie line on 16112022
+                targ = _get_conj_targ_node(self.be_arg2_node2arg1.get(targ, targ), conj2node)
                 targ_pred = self.node2pred[targ]
                 targ_arg0pred_func_name = self._get_pred_func_name(targ_pred, ARG0)
-                if self._is_frequent(targ_arg0pred_func_name, self.pred_func2cnt, self.min_pred_func_freq):
+                if self._is_frequent(targ_arg0pred_func_name, self.pred_func2cnt, self.min_pred_func_freq) or targ_pred in self.keep_preds: # and targ in self.node2nodes_whose_arg0?
                     arg0_node = _get_conj_targ_node(self.be_arg2_node2arg1.get(src, src), conj2node)
                     if self._has_intr_var(arg0_node):
                         arg0pred_func_name = self._get_pred_func_name(self.node2pred[arg0_node], ARG0)
-                        if self._is_frequent(arg0pred_func_name, self.pred_func2cnt, self.min_pred_func_freq):
+                        if self._is_frequent(arg0pred_func_name, self.pred_func2cnt, self.min_pred_func_freq) or self.node2pred[arg0_node] in self.keep_preds:
                             pred_func = self._get_pred_func_ix(pred_func_name, [arg0_node, targ])
                             self.pred_func_used.add(pred_func_name)
                             self.pred_func_nodes.add(arg0_node)
-                            # if self.snt_id == "1000070100040":
-                            #     print (self.pred_func_nodes, 3)
                             self.pred_func_nodes.add(targ)
-                            # if self.snt_id == "1000070100040":
-                            #     print (self.pred_func_nodes, 2)
         return pred_func
 
     def _get_pred_funcs(self, curr_node, curr_scope, curr_scope_nodes, top_scopes, conj2node, node_edge_idx_tbd, be_arg1_node):
@@ -724,24 +814,18 @@ class TruthConditions(object):
                     pred_func = self._get_pred_func(curr_edge, conj2node, be_arg1_node)
                     op = "pred_func_expanded_cc-aANDb"
                 else:
-                    # cc_dep_idx = self.node2cc_dep_idx[targ]
-                    # cc_dep_nodes = self.cc_dep_idx2sorted_nodes[cc_dep_idx].copy()
-                    # next_node = cc_dep_nodes.pop(0)
                     next_scope = self.node2scope[targ]
                     next_scope_nodes = self.scope2nodes[next_scope].copy()
                     next_scope_nodes.remove(targ)
                     curr_scope_nodes.insert(0, curr_node)
                     top_scopes_new = [curr_scope]# + top_scopes
                     remote_scope2nodes = {curr_scope: curr_scope_nodes}
-                    # print ("top_scopes_new:", top_scopes_new)
                     pred_func = self._expand_coord_conj(targ, next_scope, next_scope_nodes, top_scopes_new, conj2node, curr_scope, curr_scope_nodes, (curr_node, edge_idx), remote_scope2nodes, be_arg1_node)
                     op = "pred_func_cc-aANDb"
                     cc_arg_found = True
             elif self._has_intr_var(targ):# or self._is_coord_conj(targ):
-                # print ("has:", targ)
                 pred_func = self._get_pred_func(curr_edge, conj2node, be_arg1_node)
                 op = "pred_func-aANDb"
-            # print ("pred_func:", pred_func)
             if op and pred_func:
                 full_pred_func = self._compose_expr_binary(
                     op,
@@ -771,7 +855,7 @@ class TruthConditions(object):
                         has_dgtr_scope = True
                         next_scope = self.node2scope[h_targ]
                         next_scope_nodes = self.scope2nodes[next_scope].copy()
-                        # print (curr_node, "A")
+
                         cc_expr = None
                         if not self.node2is_cc_obj[h_targ]:
                             cc_expr = self._build_partial_logic_expr(next_scope, next_scope_nodes, [], conj2node, None, remote_scope2nodes.copy(), be_arg1_node)
@@ -790,8 +874,6 @@ class TruthConditions(object):
                         del conj2node[curr_node]
                     # cc_eq_exprs[idx] = self._compose_expr_binary('aANDb-cc^eq', cc_expr[idx], eq_expr[idx])
             cc_or_eq_expr = self._compose_expr_binary(op, cc_or_eq_exprs[0], cc_or_eq_exprs[1])
-            # if curr_node in conj2node:
-            #     del conj2node[curr_node]
             return cc_or_eq_expr
         else:
             return self._build_partial_logic_expr(None, [], top_scopes.copy(), conj2node, node_edge_idx_tbd, remote_scope2nodes, be_arg1_node)
@@ -861,17 +943,6 @@ class TruthConditions(object):
                             scopal_expr = self._compose_expr_binary(op, scopal_exprs[0], scopal_exprs[1])
                     elif op in UNARY_SCOPAL_OP:
                         scopal_expr = self._compose_expr_unary(op == NEG, scopal_exprs[0])
-                # or not on the scopal operator list, but contains scopal argments
-                # else:
-                #     scopal_out_edges, out_nonscopal_edges = self._get_scopal_node_out_edge(curr_node)
-                #     for idx, e in enumerate(scopal_out_edges):
-                #         if e:
-                #             h_targ = e[1]
-                #             next_scope = self.node2scope[h_targ]
-                #             next_scope_nodes = self.scope2nodes[next_scope].copy()
-                #             print (curr_node, "F")
-                #             next_scope_logic_expr = self._build_partial_logic_expr(next_scope, next_scope_nodes, top_scopes.copy(), conj2node, node_edge_idx_tbd, remote_scope2nodes.copy())
-                #             scopal_expr = self._compose_expr_binary("aANDb-/H", next_scope_logic_expr, scopal_expr)
                 pf_scopal_expr = self._compose_expr_binary('2in1-aANDb', pred_funcs_logic_expr, scopal_expr)
                 # print (curr_node, "G")
                 eq_expr = self._build_partial_logic_expr(curr_scope, curr_scope_nodes, top_scopes, conj2node, node_edge_idx_tbd, remote_scope2nodes, be_arg1_node)
@@ -931,18 +1002,12 @@ class TruthConditions(object):
             if self.node2is_be_arg2[node] != True and not self.node2pred[node] == "_be_v_id":
                 sub_arg0_logic_expr = self._build_sub_arg0_logic_expr(node)
                 arg0_logic_expr = self._compose_expr_binary("arg0-aANDb", sub_arg0_logic_expr, arg0_logic_expr)
+        # if self.snt_id == "1000080000010":
+        #     print (self.node2is_be_arg2)
         
         agg_partial_logic_expr = None
         node2visited = {node: False for node in self.dmrs_nxDG.nodes}
         top_scopes = [scope for scope, nodes in self.scope2nodes.items() if all([not self.node2outscoped[node] for node in nodes])]
-            # par_scope = self.scope2par_scope.get(functor_scope)
-
-            # while par_scope != None:
-            #     scope2desc_cc_scopes[par_scope].update(list(cc_scopes))
-            #     par_scope = self.scope2par_scope.get(par_scope)
-
-            # functor_top_scope = self._get_topmost_scope(functor_scope)
-            # scope2desc_cc_scopes[functor_top_scope].update(list(cc_scopes))
         
         #remove any top scope that contains cc_arg from outside
         # print ("dep2sorted:", self.cc_dep_idx2sorted_nodes)
@@ -1063,16 +1128,19 @@ class TruthConditions(object):
         pred2vars = defaultdict()
         
         snt_id = sample['id']
+        snt = sample['snt']
         self.snt_id = snt_id
         # print (snt_id)
         dmrs_nodelink_dict = sample['dmrs']
         self.dmrs_nxDG = nx.readwrite.json_graph.node_link_graph(dmrs_nodelink_dict)
-        mapping = {node: ix for ix, node in enumerate(list(self.dmrs_nxDG.nodes())) }
+        mapping = {node: ix + 1 for ix, node in enumerate(list(self.dmrs_nxDG.nodes())) }
         # print (mapping)
         self.dmrs_nxDG = nx.relabel_nodes(self.dmrs_nxDG, mapping)
         # print (self.dmrs_nxDG.nodes)
+        self._rename_preds()
         
         self.discarded_reason = None
+
         self._get_node2pred()
 
         self._get_scopes()
@@ -1113,11 +1181,84 @@ class TruthConditions(object):
         if not self.discarded:
             self._get_content_pred()
 
-        self._check_discard()
-        
-        # convert to ix if ix map is available
-        self.node2pred = {node: self._pred2ix(pred) for node, pred in self.node2pred.items() if self._pred2ix(pred) != None}
-        self.content_preds = [self._pred2ix(pred) for pred in self.content_preds]
+            self._check_discard()
+            
+            # convert to ix if ix map is available
+            self.node2pred_ix = {node: self._pred2ix(pred) for node, pred in self.node2pred.items() if self._pred2ix(pred) != None}
+            self.content_preds = [self._pred2ix(pred) for pred in self.content_preds if self._pred2ix(pred) != None]
+            self.pred_func_nodes = sorted(list(self.pred_func_nodes))
+
+            edge_labels = nx.get_edge_attributes(self.dmrs_nxDG, "label")
+            # print (edge_labels)
+            for pred_func_node_idx, pred_func_node in enumerate(self.pred_func_nodes):
+                self.pred_func_nodes_ctxt_preds.append([])
+                self.pred_func_nodes_ctxt_args.append([])
+                self.pred_func_nodes_ctxt_pred_args.append([])
+                # add arg0s
+                for node_whose_arg0 in self.node2nodes_whose_arg0[pred_func_node]:
+                    arg0_pred = self.node2pred[node_whose_arg0]
+                    arg0_pred_ix = self._pred2ix(arg0_pred)
+                    if arg0_pred_ix != None and self._is_frequent(arg0_pred_ix, self.content_pred2cnt, self.min_content_pred_freq) or arg0_pred in self.keep_preds:
+                        self.pred_func_nodes_ctxt_preds[pred_func_node_idx].append(self._pred2ix(self.node2pred[node_whose_arg0]))
+                        self.pred_func_nodes_ctxt_args[pred_func_node_idx].append(self._arg2ix("ARG0"))
+                        predarg_ix = self._predarg2ix(self.node2pred[node_whose_arg0], "ARG0")
+                        if predarg_ix != None:
+                            self.pred_func_nodes_ctxt_pred_args[pred_func_node_idx].append(predarg_ix)
+                # add arg1234, their reverse, and no edge
+                for content_pred_node in self.content_pred_nodes:
+                    if content_pred_node in self.node2nodes_whose_arg0[pred_func_node]:
+                        continue
+                    content_pred = self.node2pred[content_pred_node]
+                    content_pred_ix = self._pred2ix(content_pred)
+                    arg = None
+                    if self.dmrs_nxDG.has_edge(pred_func_node, content_pred_node):
+                        arg = self.get_edge_arg_lbl(edge_labels[(pred_func_node, content_pred_node, 0)]) + "-rvrs"
+                    elif self.dmrs_nxDG.has_edge(content_pred_node, pred_func_node):
+                        arg = self.get_edge_arg_lbl(edge_labels[(content_pred_node, pred_func_node, 0)])
+                    else:
+                        arg = "NonARG"
+                    arg_ix = self._arg2ix(arg)
+                    if content_pred_ix != None and self._is_frequent(content_pred_ix, self.content_pred2cnt, self.min_content_pred_freq) or content_pred in self.keep_preds:
+                        self.pred_func_nodes_ctxt_preds[pred_func_node_idx].append(self._pred2ix(content_pred))
+                        self.pred_func_nodes_ctxt_args[pred_func_node_idx].append(arg_ix)
+                        predarg_ix = self._predarg2ix(content_pred, arg)
+                        if predarg_ix:
+                            self.pred_func_nodes_ctxt_pred_args[pred_func_node_idx].append(predarg_ix)
+            
+            the_len_1 = -1
+            the_len_2 = -1
+            if self.pred_func_nodes_ctxt_preds:
+                it = iter(self.pred_func_nodes_ctxt_preds.copy())
+                the_len_1 = len(next(it))
+            # print (the_len_1)
+                if not all(len(l) == the_len_1 for l in it):
+                    print ("not all pred_func_nodes_ctxt_preds have same length")
+                    # pprint (self.pred_func_nodes_ctxt_preds)
+                    self.discarded = True
+                    self.discarded_reason = "not all pred_func_nodes_ctxt_preds have same length"
+                    # raise ValueError('not all pred_func_nodes_ctxt_preds have same length!')
+            if self.pred_func_nodes_ctxt_args:
+                it = iter(self.pred_func_nodes_ctxt_args.copy())
+                the_len_2 = len(next(it))
+                if not all(len(l) == the_len_2 for l in it):
+                    print ("not all pred_func_nodes_ctxt_args have same length")
+                    # pprint (self.pred_func_nodes_ctxt_args)
+                    self.discarded = True
+                    self.discarded_reason = "not all pred_func_nodes_ctxt_args have same length"
+                    # raise ValueError('not all pred_func_nodes_ctxt_args have same length!')
+            if the_len_1 != the_len_2:
+                print ('pred_func_nodes_ctxt_preds length != pred_func_nodes_ctxt_args length')
+                self.discarded = True
+                self.discarded_reason = "pred_func_nodes_ctxt_preds length != pred_func_nodes_ctxt_args length"
+                # raise ValueError('pred_func_nodes_ctxt_preds len != pred_func_nodes_ctxt_args len')
+
+            len_pred_args = [len(pred_args) == 0 for pred_args in self.pred_func_nodes_ctxt_pred_args]
+            if any(len_pred_args):
+                print ('pred_func_nodes_ctxt_pred_args contains length-0 list')
+                self.discarded = True
+                self.discarded_reason = "pred_func_nodes_ctxt_pred_args contains length-0 list"
+                #
+
 
         if not self.discarded and not set(self.pred_func_nodes).issubset(set(self.node2pred.keys())):
             print (snt_id, self.node2pred, self.pred_func_nodes)
@@ -1129,60 +1270,24 @@ class TruthConditions(object):
             print ()
             input()
 
+        # Union of keys of MyEncoder and PASEncoder
         transformed = {
             "discarded": self.discarded,
             "discarded_reason": self.discarded_reason,
-            "node2pred": self.node2pred,
-            "pred_func_nodes": list(self.pred_func_nodes),
+            "num_tokens": snt.count(' ') + 1,
+            "num_surf_preds": self.num_surf_preds,
+            "node2pred": self.node2pred_ix,
+            "pred_func_nodes": self.pred_func_nodes,
+            "pred_func_nodes_ctxt_preds": self.pred_func_nodes_ctxt_preds,
+            "pred_func_nodes_ctxt_args": self.pred_func_nodes_ctxt_args,
+            "pred_func_nodes_ctxt_pred_args": self.pred_func_nodes_ctxt_pred_args, # for PASEncoder
             "content_preds": self.content_preds,
             "logic_expr": self.logic_expr,
             "pred_func_used": list(self.pred_func_used)
         }
+        
+        # print (transformed)
 
         return transformed
        
-        
-#         for node, node_prop in self.dmrs_nxDG.nodes(data = True):
-            
-#             pred = node_prop['predicate']
-#             pred_lemma, pred_pos = node_prop['lemma'], node_prop['pos']
-            
-#             if pred_pos in self.config["content_pos"]:
-#                 self.content_preds.append(pred)
-#             if pred_pos in "q":
-#                 if pred in self.config["neg_quantifier"]:
-#                     pass
-#                 continue
-#             # non-quantifier or logical connectives
-#             self.entity_preds.append(pred)
-            
-#             if not pred_pos in "S" or pred in self.config['abs_pred_func']['sem']:
-#                 if pred in self.config['logical_preds'] and pred not in self.config['logical_preds']['!a']:
-#                     self._factorize_conj(node, None, node, self.config['logical_preds'][node])
-#                 else:
-#                     self.node2tcf[node].append(((pred + ';' + "ARG0", pred), 1))
-#                     self._factorize_conj(node, None, node, None)
-                
-                
-#         pprint (self.node2tcf)
-#         print ()
-#         pprint (self.neg_scope)
-        
-
-        
-#         return transformed
-
-
-# class ToTensor(object):
-#     """Convert ndarrays in sample to Tensors."""
-
-#     def __call__(self, sample):
-#         image, landmarks = sample['image'], sample['landmarks']
-
-#         # swap color axis because
-#         # numpy image: H x W x C
-#         # torch image: C x H x W
-#         image = image.transpose((2, 0, 1))
-#         return {'image': torch.from_numpy(image),
-#                 'landmarks': torch.from_numpy(landmarks)}
     

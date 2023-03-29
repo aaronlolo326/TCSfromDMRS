@@ -164,11 +164,6 @@ def dmrs_rewrite(snt_id, snt, erg_digraphs, rewrite_type):
             if rewrite_type in ['nominalization', 'eventuality', 'modal']:
                 arg1_node = None
                 out_edges = list(dmrs_dg.out_edges(node, data='label'))
-                # try:
-                #     assert len(out_edges) == 1 # False when mod/eq
-                # except:
-                #     pprint (node_prop)
-                #     print (out_edges)
                 for src, targ, lbl in dmrs_dg.out_edges(node, data='label'):
                     if lbl.startswith('ARG1'):
                         arg1_node = targ
@@ -207,15 +202,11 @@ def dmrs_rewrite(snt_id, snt, erg_digraphs, rewrite_type):
 
         merging_nodes_new = set(map(lambda x: node2new_node[x], merging_nodes))
         retain_node_new = node2new_node[retain_node]
-        # if snt_id == "1012500800170":
-        #     print (merging_nodes, retain_node)
-        #     print (merging_nodes_new)
-        #     print ()
+
         try: 
             erg_digraphs_re.dmrs_dg.merge_nodes(merging_nodes_new, retain_node_new)
         except:
             print (snt_id)
-            # print (set(map(lambda x: node2new_node[x], merging_nodes)))
             erg_digraphs_re.draw_dmrs(name = '{}'.format(rewrite_type))
             erg_digraphs.draw_dmrs(name = '{}_b4'.format(rewrite_type))
             input()
@@ -226,11 +217,6 @@ def dmrs_rewrite(snt_id, snt, erg_digraphs, rewrite_type):
         for node in merging_nodes_new:
             node2new_node[node] = retain_node_new
     
-        # if snt_id == "1012500800170":
-        #     for node in node2new_node:
-        #         if node2new_node[node] != node:
-        #             print (node, node2new_node[node])
-        #     print ()
 
     # draw after
     # if rewrite_type == 'modal' and merge_list and True:
@@ -299,10 +285,7 @@ def to_json_worker(args):
                 export_no = root.split("/")[1][-1]
                 if export_no != str(worker_id):
                     continue
-                # if file == '09490.gz':
-                #     start = True
-                # if not start:
-                #     continue
+
                 if VERBOSE:
                     sys.stderr.write("processing {}".format(os.path.join(root, file)))
 
@@ -330,8 +313,7 @@ def to_json_worker(args):
                         id_snt = id_snt.split("\n")[0]
                         snt_id = id_snt.split("]", 1)[0][1:]
                         snt = id_snt.split("`")[1][:-1]
-                        # print (snt_id, snt)
-                        
+ 
                         if (snt_id != '1000103100080'):
                             pass
                             
@@ -344,7 +326,6 @@ def to_json_worker(args):
                             if VERBOSE:
                                 print (snt)
                                 print (mrs)
-                            # print (simplemrs.decode(mrs))
                             
                         if save_deriv:
                             try:
@@ -470,7 +451,6 @@ def main(targ_export_dir, targ_data_dir, erg_dir, save_deriv, sample_only, verbo
             unk2pos = json.load(f)
         # extract(ww1212_dir, targ_export_dir)
         to_json(targ_export_dir, targ_data_dir, unk2pos, save_deriv, sample_only)
-        # to_json(targ_export_dir, targ_data_dir)
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
