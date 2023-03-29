@@ -1,4 +1,4 @@
-# TCSfromDMRS
+# Learning (Probabilistic) Truth-Conditional Semantics from Dependency Minimal Recursion Semantics (DMRS)
 
 This is the repository for Functional Distributional Semantics at Scale.
 
