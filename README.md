@@ -1,6 +1,8 @@
-# Learning (Probabilistic) Truth-Conditional Semantics from Dependency Minimal Recursion Semantics (DMRS)
+# Functional Distributional Semantics at Scale
 
-This is the repository for Functional Distributional Semantics at Scale.
+This is the repository for [Functional Distributional Semantics at Scale](https://aclanthology.org/2023.starsem-1.37/) (*SEM 2023).
+
+Functional Distributional Semantics (FDS) attempts to learn truth-conditional meanings of words from distributional information in a corpus. This work extends the applicability of FDS to sentences with more complex structures.
 
 ## Getting Started
 
@@ -13,7 +15,7 @@ conda env create -f environment.yml
 
 ### Data
 
-* Training the models require data from [Wikiwoods](https://github.com/delph-in/docs/wiki/WikiWoods):
+* Training the models require linguistically annotated data from [Wikiwoods](https://github.com/delph-in/docs/wiki/WikiWoods):
 ```
 wget http://ltr.uio.no/wikiwoods/1212/
 ```
@@ -21,7 +23,7 @@ wget http://ltr.uio.no/wikiwoods/1212/
 
 ### Usage
 
-* See setup.ipynb for how to run the codes.
+* See setup.ipynb for the procedure for model training and evaluation.
 
 ## Help
 
